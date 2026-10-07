@@ -1,0 +1,75 @@
+'use client';
+
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { CircleDot } from 'lucide-react';
+import { DayCell } from './day-cell';
+import { toggleEntryAction } from '@/lib/actions/entry-actions';
+import { habitMonthProgress, isGridApplicable, type CalendarDay } from '@/lib/analytics/habit-month-progress';
+import type { SelectHabit } from '@/types';
+
+interface HabitRowProps {
+  habit: SelectHabit;
+  days: CalendarDay[];
+  today: string;
+  initialCompletedDates: string[];
+}
+
+export function HabitRow({ habit, days, today, initialCompletedDates }: HabitRowProps) {
+  const [completedDates, setCompletedDates] = useState(() => new Set(initialCompletedDates));
+  const completedRef = useRef(completedDates);
+  const pendingRef = useRef(false);
+  const [pendingDate, setPendingDate] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const progress = useMemo(() => habitMonthProgress(habit, days, completedDates, today), [habit, days, completedDates, today]);
+
+  const handleToggle = useCallback(async (date: string) => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPendingDate(date);
+    setError(null);
+    const wasCompleted = completedRef.current.has(date);
+    const next = new Set(completedRef.current);
+    if (wasCompleted) next.delete(date); else next.add(date);
+    completedRef.current = next;
+    setCompletedDates(next);
+
+    const formData = new FormData();
+    formData.set('habitId', habit.id);
+    formData.set('date', date);
+    formData.set('completed', String(!wasCompleted));
+    try {
+      const result = await toggleEntryAction({}, formData);
+      if (result.error) throw new Error(result.error);
+    } catch (failure) {
+      const rollback = new Set(completedRef.current);
+      if (wasCompleted) rollback.add(date); else rollback.delete(date);
+      completedRef.current = rollback;
+      setCompletedDates(rollback);
+      setError(failure instanceof Error ? failure.message : 'Could not save this day. Try again.');
+    } finally {
+      pendingRef.current = false;
+      setPendingDate(null);
+    }
+  }, [habit.id]);
+
+  return (
+    <tr className="group hover:bg-primary/[0.025]">
+      <th scope="row" className="sticky left-0 z-10 w-48 min-w-48 max-w-48 border-b bg-card px-4 py-3 text-left group-hover:bg-[#f7faff] dark:group-hover:bg-muted">
+        <span className="flex items-center gap-2.5">
+          <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">{habit.icon || <CircleDot className="h-4 w-4" />}</span>
+          <span className="min-w-0 truncate font-medium" title={habit.name}>{habit.name}</span>
+        </span>
+        {error && <span role="alert" className="mt-1 block text-xs font-normal text-destructive">{error}</span>}
+      </th>
+      <td className="w-20 min-w-20 border-b px-2 py-3 text-center font-semibold tabular-nums">{progress.goal}</td>
+      <td className="w-28 min-w-28 border-b px-2 py-3">
+        <div className="flex items-baseline justify-between gap-1 tabular-nums"><span className="font-semibold">{progress.completed} / {progress.goal}</span><span className="text-xs text-muted-foreground">{progress.percentage}%</span></div>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width] duration-200" style={{ width: `${progress.percentage}%` }} /></div>
+      </td>
+      {days.map((day) => {
+        const isEligible = isGridApplicable(habit, day, days, completedDates);
+        return <DayCell key={day.date} habitName={habit.name} date={day.date} isCompleted={completedDates.has(day.date)} isToday={day.date === today} isFuture={day.date > today} isEligible={isEligible} isPending={pendingDate === day.date} isBusy={pendingDate !== null} onToggle={handleToggle} />;
+      })}
+    </tr>
+  );
+}

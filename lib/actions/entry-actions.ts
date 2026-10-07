@@ -1,0 +1,66 @@
+'use server';
+
+import { getCurrentUser } from '@/lib/auth/session';
+import { ToggleEntrySchema } from '@/lib/validations/entry';
+import { upsertHabitEntry, deleteHabitEntry } from '@/lib/dal/habit-entries';
+import { getHabitByIdAndUser } from '@/lib/dal/habits';
+import { getUserSettings } from '@/lib/dal/user-settings';
+import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
+import { isScheduledWeekday } from '@/lib/analytics/habit-month-progress';
+
+export type ToggleEntryState = {
+  error?: string;
+  success?: boolean;
+};
+
+export async function toggleEntryAction(
+  _prevState: ToggleEntryState,
+  formData: FormData,
+): Promise<ToggleEntryState> {
+  // 1. Authenticate
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: 'Unauthorized' };
+  }
+  const userId = user.id;
+
+  // 2. Parse & validate
+  const raw = {
+    habitId: formData.get('habitId'),
+    date: formData.get('date'),
+    completed: formData.get('completed') === 'true' ? true : formData.get('completed') === 'false' ? false : null,
+  };
+  const parsed = ToggleEntrySchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+  }
+
+  const { habitId, date, completed } = parsed.data;
+
+  // 3. Verify the habit belongs to this user (authorization)
+  const habit = await getHabitByIdAndUser(habitId, userId);
+  if (!habit || habit.archived) {
+    return { error: 'Habit not found' };
+  }
+
+  const settings = await getUserSettings(userId);
+  const today = toDateString(getTodayInTimezone(settings.timezone));
+  const [year, month, day] = date.split('-').map(Number);
+  const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  if (date > today || date < habit.startDate || (habit.endDate && date > habit.endDate) || !isScheduledWeekday(habit.schedule, dayOfWeek)) {
+    return { error: 'This date is not available for this habit' };
+  }
+
+  // 4. Perform the operation
+  try {
+    if (completed) {
+      await upsertHabitEntry(userId, habitId, date, true);
+    } else {
+      await deleteHabitEntry(userId, habitId, date);
+    }
+  } catch {
+    return { error: 'Could not save this day. Please try again.' };
+  }
+
+  return { success: true };
+}

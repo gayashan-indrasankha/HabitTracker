@@ -1,0 +1,87 @@
+'use client';
+
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { DailyProgress } from '@/types';
+
+interface DailyLineChartProps {
+  data: DailyProgress[];
+}
+
+export function DailyLineChart({ data }: DailyLineChartProps) {
+  const chartData = data
+    .filter((d) => d.total > 0)
+    .map((d) => ({
+      day: d.date.slice(8), // day number
+      rate: d.rate,
+    }));
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-6">
+          <p className="text-sm text-muted-foreground">No data yet</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-32">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+              />
+              <Tooltip
+                formatter={(value) => [`${value ?? 0}%`, 'Rate']}
+                contentStyle={{
+                  background: 'var(--popover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: 12,
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="rate"
+                stroke="var(--primary)"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

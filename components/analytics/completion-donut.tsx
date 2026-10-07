@@ -1,0 +1,80 @@
+'use client';
+
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { CompletionStats } from '@/types';
+
+interface CompletionDonutProps {
+  stats: CompletionStats;
+}
+
+export function CompletionDonut({ stats }: CompletionDonutProps) {
+  const remaining = Math.max(0, stats.total - stats.completed);
+  const data = [
+    { name: 'Completed', value: stats.completed },
+    { name: 'Remaining', value: remaining },
+  ];
+
+  const COLORS = ['var(--primary)', 'var(--muted)'];
+
+  if (stats.total === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Completion</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-6">
+          <p className="text-sm text-muted-foreground">No data yet</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Completion</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="relative h-36">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={46}
+                outerRadius={66}
+                paddingAngle={2}
+                dataKey="value"
+                stroke="none"
+                startAngle={90}
+                endAngle={-270}
+              >
+                {data.map((_, index) => (
+                  <Cell key={index} fill={COLORS[index]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value, name) => [value ?? 0, String(name)]}
+                contentStyle={{
+                  background: 'var(--popover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: 12,
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          {/* Center label overlay */}
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold">{stats.rate}%</span>
+            <span className="text-xs text-muted-foreground">
+              {stats.completed}/{stats.total}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

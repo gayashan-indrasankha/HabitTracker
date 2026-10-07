@@ -19,6 +19,9 @@
 
 # production
 /build
+/dist-desktop/
+/desktop-stage/
+/.desktop-test/
 
 # misc
 .DS_Store
@@ -32,6 +35,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +43,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local tooling
+playwright-report/
+test-results/

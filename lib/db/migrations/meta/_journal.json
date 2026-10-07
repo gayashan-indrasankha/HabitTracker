@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791144065433,
+      "tag": "0000_steep_proudstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791190093636,
+      "tag": "0001_wealthy_lifeguard",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791190145130,
+      "tag": "0002_organic_slipstream",
+      "breakpoints": true
+    }
+  ]
+}

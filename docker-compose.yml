@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: habitflow-db
+    environment:
+      POSTGRES_USER: habitflow
+      POSTGRES_PASSWORD: habitflow
+      POSTGRES_DB: habitflow
+    ports:
+      - '${HABITFLOW_DB_PORT:-5433}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U habitflow']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

@@ -1,0 +1,13 @@
+appId: com.habitflow.desktop
+productName: HabitFlow
+asar: false
+compression: store
+directories:
+  app: desktop-stage
+  output: dist-desktop
+files:
+  - '**/*'
+  - '!**/*.map'
+win:
+  target:
+    - portable
