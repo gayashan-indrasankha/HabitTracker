@@ -20,6 +20,21 @@ interface HabitCardProps {
   isArchived?: boolean;
 }
 
+function scheduleLabel(schedule: string) {
+  if (schedule === 'daily') return 'Every day';
+  if (schedule === 'weekdays') return 'Weekdays';
+  if (schedule === 'weekends') return 'Weekends';
+  if (schedule.startsWith('weekly:')) {
+    const count = Number(schedule.slice(7));
+    return `${count} ${count === 1 ? 'time' : 'times'} per week`;
+  }
+  if (/^custom:[01]{7}$/.test(schedule)) {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return weekdays.filter((_, index) => schedule[7 + index] === '1').join(', ');
+  }
+  return schedule;
+}
+
 export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
@@ -49,9 +64,14 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
               </span>
             )}
             <div className="min-w-0">
-              <p className="truncate font-semibold">{habit.name}</p>
+              <p className="truncate font-semibold" title={habit.name}>
+                {habit.name}
+              </p>
               {habit.category && (
-                <span className="inline-block mt-0.5 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                <span
+                  className="mt-0.5 inline-block max-w-full truncate rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                  title={habit.category}
+                >
                   {habit.category}
                 </span>
               )}
@@ -63,7 +83,7 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0"
+                className="h-10 w-10 shrink-0"
                 aria-label={`Actions for ${habit.name}`}
                 disabled={isPending}
               >
@@ -113,9 +133,9 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
           </p>
         )}
 
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
           <span>Target: {habit.monthlyTarget} days/mo</span>
-          <span className="capitalize">{habit.schedule}</span>
+          <span>{scheduleLabel(habit.schedule)}</span>
         </div>
       </CardContent>
     </Card>

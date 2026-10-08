@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, Archive } from 'lucide-react';
 
+export const metadata = { title: 'Habits | HabitFlow' };
+
 export default async function HabitsPage() {
   const user = await requireUser();
   const allHabits = await getAllHabitsByUser(user.id);
@@ -14,7 +16,7 @@ export default async function HabitsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Habits</h1>
           <p className="text-sm text-muted-foreground">Manage your habit tracking list</p>

@@ -173,7 +173,7 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
           </div>
 
           {/* Category + Monthly Target */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="category">Category</Label>
               <Input id="category" placeholder="e.g. Health, Learning" {...register('category')} />
