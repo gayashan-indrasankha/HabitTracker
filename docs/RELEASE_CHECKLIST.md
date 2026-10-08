@@ -46,7 +46,14 @@ Web PostgreSQL and desktop PGlite remain separate. The desktop CI job runs the p
 
 ## CI
 
-`.github/workflows/ci.yml` runs source gates, PostgreSQL/PGlite migrations and browser tests with a PostgreSQL 16 service. `.github/workflows/desktop-check.yml` builds and inspects the Windows portable application. Both use read-only repository permissions, disposable test data, and no production secrets or deployment steps. Actual GitHub run IDs and results must be recorded after a push; local success alone is not a CI pass.
+`.github/workflows/ci.yml` runs source gates, PostgreSQL/PGlite migrations and browser tests with a PostgreSQL 16 service. `.github/workflows/desktop-check.yml` builds, inspects, and exercises the packaged Windows application. Both use read-only repository permissions, disposable test data, and no production secrets or deployment steps.
+
+| Workflow                | GitHub run                                                                                   | Result  | Evidence / next step                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Quality gate            | [37817434858](https://github.com/gayashan-indrasankha/HabitTracker/actions/runs/37817434858) | BLOCKED | GitHub refused the job before any step: “The job was not started because your account is locked due to a billing issue.” No runner or logs were created. |
+| Windows desktop package | [37817434856](https://github.com/gayashan-indrasankha/HabitTracker/actions/runs/37817434856) | BLOCKED | Same GitHub billing lock; no runner or steps executed.                                                                                                   |
+
+Once the account lock is resolved, rerun both workflows on the current commit and record their actual results. Local execution does not establish a GitHub CI pass.
 
 ## Findings and release gate
 
@@ -54,6 +61,6 @@ Web PostgreSQL and desktop PGlite remain separate. The desktop CI job runs the p
 - **HIGH, fixed:** multiple PostgreSQL protocol clients on one PGlite socket could mismatch prepared-statement parameters and return HTTP 500 during desktop UI writes. The client is now shared and uses unnamed statements; real packaged UI and standalone browser regression tests pass.
 - **MEDIUM, fixed:** repository formatting was not clean. Applied migration snapshots are excluded from Prettier to preserve metadata; maintained source now passes the formatting gate.
 - Local browser suite passed 22/22 twice; the second run followed the desktop database correction. The 45 unit tests, static gates, and production build passed.
-- Release verdict is **PARTIALLY VERIFIED** until GitHub-hosted CI has run successfully. Playwright's full UI and restart flow used the packaged `win-unpacked` executable; the NSIS wrapper itself was directly launched and closed, but its full data persistence flow was not repeated. The prior-version binary upgrade is NOT RUN because no earlier binary is available.
+- Release verdict is **PARTIALLY VERIFIED** because both required GitHub jobs are BLOCKED by the account billing lock. Playwright's full UI and restart flow used the packaged `win-unpacked` executable; the NSIS wrapper itself was directly launched and closed, but its full data persistence flow was not repeated. The prior-version binary upgrade is NOT RUN because no earlier binary is available.
 
 Run browser and PostgreSQL tests only with `HABITFLOW_TEST_ADMIN_URL` set to a local disposable PostgreSQL admin database. The harness refuses non-loopback hosts. On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution policy blocks npm.ps1.
