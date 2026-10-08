@@ -25,6 +25,8 @@ import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { internshipApplications, subjectTopics } from '@/lib/db/schema';
 
+export const metadata = { title: 'Today | HabitFlow' };
+
 export default async function TodayPage() {
   const user = await requireUser();
   const settings = await getUserSettings(user.id);
@@ -125,7 +127,7 @@ export default async function TodayPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
-            Today Â· {settings.timezone}
+            Today · {settings.timezone}
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">
             Good to see you, {user.name?.split(' ')[0] ?? 'friend'}.
@@ -289,7 +291,7 @@ export default async function TodayPage() {
           <PriorityPanel date={date} mode={mode} selected={selected} choices={backlogChoices} />
           <section className="rounded-2xl border bg-card p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Todayâ€™s schedule</h2>
+              <h2 className="text-xl font-bold">Today’s schedule</h2>
               <Link href="/week" className="text-sm font-medium text-primary hover:underline">
                 Open week
               </Link>
@@ -301,12 +303,12 @@ export default async function TodayPage() {
                     <div className="flex flex-wrap justify-between gap-3">
                       <div>
                         <p className="text-xs font-semibold text-primary">
-                          {block.localStartTime}â€“{block.localEndTime} Â· {block.category}
+                          {block.localStartTime}–{block.localEndTime} · {block.category}
                         </p>
                         <h3 className="font-semibold">
                           {block.title}{' '}
                           {block.isFixed && (
-                            <span className="text-xs text-muted-foreground">Â· Fixed</span>
+                            <span className="text-xs text-muted-foreground">· Fixed</span>
                           )}
                         </h3>
                         <p className="text-xs text-muted-foreground">{block.occurrenceStatus}</p>
