@@ -52,6 +52,10 @@ async function start() {
   });
   assert.equal(await application.evaluate(({ app }) => app.getVersion()), version);
   const window = await application.firstWindow({ timeout: 90_000 });
+  await window.waitForURL(/\/(login|register)(\?|$)/, { timeout: 90_000 });
+  if (await window.getByRole('heading', { name: 'Log in to HabitFlow' }).isVisible()) {
+    await window.getByRole('link', { name: 'Create an account' }).click();
+  }
   await expect(window.getByRole('heading', { name: 'Create your account' })).toBeVisible({
     timeout: 90_000,
   });
@@ -76,6 +80,9 @@ try {
     ),
   );
   await expect(window).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+  await expect(
+    window.getByRole('navigation', { name: 'Main navigation' }).getByRole('link').first(),
+  ).toHaveText('Home');
   const origin = new URL(window.url()).origin;
   assert.match(origin, /^http:\/\/127\.0\.0\.1:\d+$/);
   await window.goto(`${origin}/habits/new`);
@@ -128,6 +135,7 @@ try {
     await expect(window).toHaveURL(/\/dashboard/);
   }
   const secondOrigin = new URL(window.url()).origin;
+  await expect(window).toHaveURL(/\/dashboard/);
   for (const route of ['/api/health', '/api/export', '/habits']) {
     const response = await window.request.get(`${secondOrigin}${route}`);
     assert.equal(response.status(), 200, `Restarted ${route}`);
