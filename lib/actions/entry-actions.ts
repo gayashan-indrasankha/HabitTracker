@@ -29,7 +29,12 @@ export async function toggleEntryAction(
   const raw = {
     habitId: formData.get('habitId'),
     date: formData.get('date'),
-    completed: formData.get('completed') === 'true' ? true : formData.get('completed') === 'false' ? false : null,
+    completed:
+      formData.get('completed') === 'true'
+        ? true
+        : formData.get('completed') === 'false'
+          ? false
+          : null,
   };
   const parsed = ToggleEntrySchema.safeParse(raw);
   if (!parsed.success) {
@@ -48,7 +53,12 @@ export async function toggleEntryAction(
   const today = toDateString(getTodayInTimezone(settings.timezone));
   const [year, month, day] = date.split('-').map(Number);
   const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-  if (date > today || date < habit.startDate || (habit.endDate && date > habit.endDate) || !isScheduledWeekday(habit.schedule, dayOfWeek)) {
+  if (
+    date > today ||
+    date < habit.startDate ||
+    (habit.endDate && date > habit.endDate) ||
+    !isScheduledWeekday(habit.schedule, dayOfWeek)
+  ) {
     return { error: 'This date is not available for this habit' };
   }
 

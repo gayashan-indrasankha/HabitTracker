@@ -210,7 +210,9 @@ export async function saveCriterionAction(
       await tx
         .select({ id: tasks.id })
         .from(tasks)
-        .where(and(eq(tasks.userId, userId), eq(tasks.id, input.taskId), eq(tasks.isMilestone, true)))
+        .where(
+          and(eq(tasks.userId, userId), eq(tasks.id, input.taskId), eq(tasks.isMilestone, true)),
+        )
         .for('update')
         .limit(1)
     )[0];
@@ -293,15 +295,13 @@ export async function saveMilestoneReviewAction(
         target: [milestoneReviews.userId, milestoneReviews.taskId],
         set: { ...input, updatedAt: new Date() },
       });
-    await tx
-      .insert(milestoneReviewHistory)
-      .values({
-        userId,
-        ...input,
-        criteriaSnapshot: JSON.stringify(
-          criteria.map((item) => ({ title: item.title, met: item.met })),
-        ),
-      });
+    await tx.insert(milestoneReviewHistory).values({
+      userId,
+      ...input,
+      criteriaSnapshot: JSON.stringify(
+        criteria.map((item) => ({ title: item.title, met: item.met })),
+      ),
+    });
     return { success: 'Milestone review saved separately from task completion.' };
   });
   if (result.success) refresh();

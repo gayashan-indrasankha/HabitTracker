@@ -35,19 +35,22 @@ export function AnalyticsPanel({
   note,
 }: AnalyticsPanelProps) {
   const dailyProgress = calculateDailyProgress(habits, entries, daysInMonth, today);
-  const weeklySummary = calculateWeeklySummary(
-    habits,
-    entries,
-    daysInMonth,
-    weekStartsOn,
-    today,
-  );
+  const weeklySummary = calculateWeeklySummary(habits, entries, daysInMonth, weekStartsOn, today);
   const topHabits = calculateTopHabits(habits, entries, daysInMonth, today, 5);
 
   return (
-    <section aria-label="Habit analytics" className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_minmax(0,2.25fr)_minmax(190px,1fr)]">
+    <section
+      aria-label="Habit analytics"
+      className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_minmax(0,2.25fr)_minmax(190px,1fr)]"
+    >
       <div className="grid gap-4">
-        <ProgressSummary stats={stats} currentStreak={currentStreak} bestStreak={bestStreak} habitCount={habits.length} streakCutoff={streakCutoff} />
+        <ProgressSummary
+          stats={stats}
+          currentStreak={currentStreak}
+          bestStreak={bestStreak}
+          habitCount={habits.length}
+          streakCutoff={streakCutoff}
+        />
         <TopHabitsList topHabits={topHabits} />
       </div>
       <div className="grid gap-4">

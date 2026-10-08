@@ -22,7 +22,9 @@ async function main() {
   );
 
   console.log(`Embedded database ready on 127.0.0.1:${port}. Keep this terminal open.`);
-  console.log('Data is stored in .local-embedded-db/ and is separate from Docker and desktop data.');
+  console.log(
+    'Data is stored in .local-embedded-db/ and is separate from Docker and desktop data.',
+  );
 
   let closing = false;
   async function close() {
@@ -30,8 +32,12 @@ async function main() {
     closing = true;
     await database.close();
   }
-  process.once('SIGINT', () => { void close(); });
-  process.once('SIGTERM', () => { void close(); });
+  process.once('SIGINT', () => {
+    void close();
+  });
+  process.once('SIGTERM', () => {
+    void close();
+  });
 }
 
 main().catch((error) => {

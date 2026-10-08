@@ -21,8 +21,16 @@ export function isFlexibleWeekly(schedule: string): boolean {
   return /^weekly:[1-7]$/.test(schedule);
 }
 
-export function isFixedOccurrence(habit: { schedule: string; startDate: string; endDate?: string | null }, date: string, dayOfWeek: number): boolean {
-  return !isFlexibleWeekly(habit.schedule) && inHabitRange(habit, date) && isScheduledWeekday(habit.schedule, dayOfWeek);
+export function isFixedOccurrence(
+  habit: { schedule: string; startDate: string; endDate?: string | null },
+  date: string,
+  dayOfWeek: number,
+): boolean {
+  return (
+    !isFlexibleWeekly(habit.schedule) &&
+    inHabitRange(habit, date) &&
+    isScheduledWeekday(habit.schedule, dayOfWeek)
+  );
 }
 
 export function weeklyQuotaAttainment(
@@ -37,14 +45,17 @@ export function weeklyQuotaAttainment(
   const start = weekStart(firstDay, startsOn);
   const [y, m, d] = start.split('-').map(Number);
   const eligible = Array.from({ length: 7 }, (_, offset) =>
-    new Date(Date.UTC(y, m - 1, d + offset)).toISOString().slice(0, 10))
-    .filter(date => inHabitRange(habit, date));
+    new Date(Date.UTC(y, m - 1, d + offset)).toISOString().slice(0, 10),
+  ).filter((date) => inHabitRange(habit, date));
   const goal = Math.min(quota, eligible.length);
-  const completed = eligible.filter(date => date <= cutoff && completedDates.has(date)).length;
+  const completed = eligible.filter((date) => date <= cutoff && completedDates.has(date)).length;
   return { goal, completed, achieved: goal > 0 && completed >= goal };
 }
 
-export function inHabitRange(habit: { startDate: string; endDate?: string | null }, date: string): boolean {
+export function inHabitRange(
+  habit: { startDate: string; endDate?: string | null },
+  date: string,
+): boolean {
   return date >= habit.startDate && (!habit.endDate || date <= habit.endDate);
 }
 
@@ -57,18 +68,33 @@ export function weekStart(date: string, startsOn = 1): string {
 
 export function scheduleStats(
   habit: { schedule: string; startDate: string; endDate?: string | null },
-  days: readonly CalendarDay[], completedDates: ReadonlySet<string>, cutoff: string,
+  days: readonly CalendarDay[],
+  completedDates: ReadonlySet<string>,
+  cutoff: string,
   startsOn = 1,
 ) {
   // Month percentages are defined only for fixed occurrences. A calendar month
   // cuts flexible weeks in half, so weekly quota attainment is shown separately.
   void startsOn;
-  const eligible = days.filter(day => day.date <= cutoff && isFixedOccurrence(habit, day.date, day.dayOfWeek));
-  return { total: eligible.length, completed: eligible.filter(day => completedDates.has(day.date)).length };
+  const eligible = days.filter(
+    (day) => day.date <= cutoff && isFixedOccurrence(habit, day.date, day.dayOfWeek),
+  );
+  return {
+    total: eligible.length,
+    completed: eligible.filter((day) => completedDates.has(day.date)).length,
+  };
 }
 
-export function isGridApplicable(habit: { schedule: string; startDate: string; endDate?: string | null }, day: CalendarDay, days: readonly CalendarDay[], completedDates: ReadonlySet<string>, startsOn = 1): boolean {
-  void days; void completedDates; void startsOn;
+export function isGridApplicable(
+  habit: { schedule: string; startDate: string; endDate?: string | null },
+  day: CalendarDay,
+  days: readonly CalendarDay[],
+  completedDates: ReadonlySet<string>,
+  startsOn = 1,
+): boolean {
+  void days;
+  void completedDates;
+  void startsOn;
   return inHabitRange(habit, day.date) && isScheduledWeekday(habit.schedule, day.dayOfWeek);
 }
 
@@ -82,5 +108,9 @@ export function habitMonthProgress(
   const elapsed = scheduleStats(habit, days, completedDates, today);
   const goal = Math.min(habit.monthlyTarget, month.total);
   const completed = Math.min(goal, elapsed.completed);
-  return { completed, goal, percentage: goal ? Math.min(100, Math.round((completed / goal) * 100)) : 0 };
+  return {
+    completed,
+    goal,
+    percentage: goal ? Math.min(100, Math.round((completed / goal) * 100)) : 0,
+  };
 }

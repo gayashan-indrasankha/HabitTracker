@@ -59,15 +59,10 @@ interface SettingsFormProps {
 const initialState: SettingsActionState = {};
 
 export function SettingsForm({ defaultValues }: SettingsFormProps) {
-  const [state, formAction, isPending] = useActionState(
-    updateSettingsAction,
-    initialState,
-  );
+  const [state, formAction, isPending] = useActionState(updateSettingsAction, initialState);
 
   const [timezone, setTimezone] = useState(defaultValues.timezone);
-  const [weekStartsOn, setWeekStartsOn] = useState(
-    String(defaultValues.weekStartsOn),
-  );
+  const [weekStartsOn, setWeekStartsOn] = useState(String(defaultValues.weekStartsOn));
   const [theme, setTheme] = useState(defaultValues.theme);
 
   return (

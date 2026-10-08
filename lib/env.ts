@@ -22,11 +22,22 @@ export function parseServerEnv(values: Record<string, string | undefined>) {
     const auth = new URL(result.data.BETTER_AUTH_URL);
     const app = result.data.NEXT_PUBLIC_APP_URL ? new URL(result.data.NEXT_PUBLIC_APP_URL) : null;
     const invalid = [
-      database.hostname === 'localhost' || database.hostname === '127.0.0.1' || database.searchParams.get('sslmode') !== 'require' ? 'DATABASE_URL' : null,
-      auth.protocol !== 'https:' || /^(localhost|127\.0\.0\.1)$/.test(auth.hostname) || auth.pathname !== '/' ? 'BETTER_AUTH_URL' : null,
-      !app || app.protocol !== 'https:' || app.origin !== auth.origin || app.pathname !== '/' ? 'NEXT_PUBLIC_APP_URL' : null,
+      database.hostname === 'localhost' ||
+      database.hostname === '127.0.0.1' ||
+      database.searchParams.get('sslmode') !== 'require'
+        ? 'DATABASE_URL'
+        : null,
+      auth.protocol !== 'https:' ||
+      /^(localhost|127\.0\.0\.1)$/.test(auth.hostname) ||
+      auth.pathname !== '/'
+        ? 'BETTER_AUTH_URL'
+        : null,
+      !app || app.protocol !== 'https:' || app.origin !== auth.origin || app.pathname !== '/'
+        ? 'NEXT_PUBLIC_APP_URL'
+        : null,
     ].filter(Boolean);
-    if (invalid.length) throw new Error(`Invalid production environment variables: ${invalid.join(', ')}`);
+    if (invalid.length)
+      throw new Error(`Invalid production environment variables: ${invalid.join(', ')}`);
   }
   return result.data;
 }

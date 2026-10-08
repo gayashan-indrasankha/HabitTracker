@@ -1,8 +1,4 @@
-export type HabitSchedule =
-  | 'daily'
-  | 'weekdays'
-  | 'weekends'
-  | `custom:${string}`;
+export type HabitSchedule = 'daily' | 'weekdays' | 'weekends' | `custom:${string}`;
 
 export type Theme = 'light' | 'dark' | 'system';
 

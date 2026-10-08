@@ -19,21 +19,40 @@ try {
   await writeFile(join(old, 'meta', '_journal.json'), JSON.stringify(journal));
   const db = drizzle({ client });
   await migrate(db, { migrationsFolder: old });
-  await client.query("INSERT INTO \"user\" (id, name, email) VALUES ('owner', 'Owner', 'owner-p1-pglite@example.test')");
-  const goal = await client.query("INSERT INTO goals (user_id, area, title) VALUES ('owner', 'Career', 'Portfolio') RETURNING id");
-  const block = await client.query("INSERT INTO time_blocks (user_id, title, category, local_start_time, local_end_time, weekday_mask, start_date, goal_id, is_fixed) VALUES ('owner', 'Study', 'Career', '09:00', '10:00', '1000000', '2026-10-05', $1, true) RETURNING id", [goal.rows[0].id]);
-  await client.query("INSERT INTO time_block_revisions (user_id, block_id, effective_date, title, category, local_start_time, local_end_time, weekday_mask, status) VALUES ('owner', $1, '2026-10-05', 'Study', 'Career', '09:00', '10:00', '1000000', 'active')", [block.rows[0].id]);
+  await client.query(
+    "INSERT INTO \"user\" (id, name, email) VALUES ('owner', 'Owner', 'owner-p1-pglite@example.test')",
+  );
+  const goal = await client.query(
+    "INSERT INTO goals (user_id, area, title) VALUES ('owner', 'Career', 'Portfolio') RETURNING id",
+  );
+  const block = await client.query(
+    "INSERT INTO time_blocks (user_id, title, category, local_start_time, local_end_time, weekday_mask, start_date, goal_id, is_fixed) VALUES ('owner', 'Study', 'Career', '09:00', '10:00', '1000000', '2026-10-05', $1, true) RETURNING id",
+    [goal.rows[0].id],
+  );
+  await client.query(
+    "INSERT INTO time_block_revisions (user_id, block_id, effective_date, title, category, local_start_time, local_end_time, weekday_mask, status) VALUES ('owner', $1, '2026-10-05', 'Study', 'Career', '09:00', '10:00', '1000000', 'active')",
+    [block.rows[0].id],
+  );
   await migrate(db, { migrationsFolder: migrations });
-  const revision = await client.query('SELECT goal_id, is_fixed FROM time_block_revisions WHERE block_id = $1', [block.rows[0].id]);
+  const revision = await client.query(
+    'SELECT goal_id, is_fixed FROM time_block_revisions WHERE block_id = $1',
+    [block.rows[0].id],
+  );
   assert.equal(revision.rows[0].goal_id, goal.rows[0].id);
   assert.equal(revision.rows[0].is_fixed, true);
   await db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${'habitflow-schedule:owner'}, 0))`);
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${'habitflow-schedule:owner'}, 0))`,
+    );
     await tx.execute(sql`UPDATE goals SET archived_at = now() WHERE id = ${goal.rows[0].id}`);
   });
-  const archived = await client.query('SELECT archived_at FROM goals WHERE id = $1', [goal.rows[0].id]);
+  const archived = await client.query('SELECT archived_at FROM goals WHERE id = $1', [
+    goal.rows[0].id,
+  ]);
   assert.ok(archived.rows[0].archived_at);
-  console.log('PGlite P1 existing-schema upgrade, revision metadata, archive, and transaction lock: PASS');
+  console.log(
+    'PGlite P1 existing-schema upgrade, revision metadata, archive, and transaction lock: PASS',
+  );
 } finally {
   await client.close();
   await rm(old, { recursive: true, force: true });

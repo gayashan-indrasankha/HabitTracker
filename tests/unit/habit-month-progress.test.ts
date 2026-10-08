@@ -13,14 +13,17 @@ function days(year: number, month: number) {
 }
 
 describe('monthly calendar', () => {
-  it.each([[2025, 2, 28], [2024, 2, 29], [2026, 4, 30], [2026, 10, 31]])(
-    '%i-%i has %i days', (year, month, count) => {
-      const monthDays = days(year, month);
-      expect(monthDays).toHaveLength(count);
-      expect(monthDays[0].day).toBe(1);
-      expect(monthDays.at(-1)?.day).toBe(count);
-    },
-  );
+  it.each([
+    [2025, 2, 28],
+    [2024, 2, 29],
+    [2026, 4, 30],
+    [2026, 10, 31],
+  ])('%i-%i has %i days', (year, month, count) => {
+    const monthDays = days(year, month);
+    expect(monthDays).toHaveLength(count);
+    expect(monthDays[0].day).toBe(1);
+    expect(monthDays.at(-1)?.day).toBe(count);
+  });
 
   it('rejects invalid month parameters', () => {
     expect(isValidYearMonth('2026-13')).toBe(false);
@@ -32,7 +35,9 @@ describe('monthly calendar', () => {
     const completed = new Set(['2026-02-01', '2026-02-02', '2026-02-03', '2026-02-28']);
     const progress = habitMonthProgress(
       { schedule: 'weekdays', startDate: '2026-02-01', monthlyTarget: 25 },
-      monthDays, completed, '2026-02-03',
+      monthDays,
+      completed,
+      '2026-02-03',
     );
     expect(progress).toEqual({ completed: 2, goal: 20, percentage: 10 });
   });
@@ -42,7 +47,9 @@ describe('monthly calendar', () => {
     expect(isScheduledWeekday('custom:1000000', 2)).toBe(false);
     const progress = habitMonthProgress(
       { schedule: 'daily', startDate: '2026-04-29', monthlyTarget: 20 },
-      days(2026, 4), new Set(['2026-04-28', '2026-04-29']), '2026-04-30',
+      days(2026, 4),
+      new Set(['2026-04-28', '2026-04-29']),
+      '2026-04-30',
     );
     expect(progress).toEqual({ completed: 1, goal: 2, percentage: 50 });
   });

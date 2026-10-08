@@ -30,10 +30,7 @@ export default async function NotesPage() {
           <NotebookPen className="h-4 w-4" />
           Today — {format(today, 'MMMM d, yyyy')}
         </h2>
-        <DailyNoteEditor
-          date={todayStr}
-          initialContent={todayNote?.content ?? ''}
-        />
+        <DailyNoteEditor date={todayStr} initialContent={todayNote?.content ?? ''} />
       </div>
 
       {/* Past notes */}
@@ -45,10 +42,7 @@ export default async function NotesPage() {
           {notes
             .filter((n) => n.date !== todayStr)
             .map((note) => (
-              <div
-                key={note.id}
-                className="rounded-xl border bg-card p-4 shadow-sm"
-              >
+              <div key={note.id} className="rounded-xl border bg-card p-4 shadow-sm">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">
                   {format(new Date(note.date + 'T00:00:00'), 'MMMM d, yyyy')}
                 </p>

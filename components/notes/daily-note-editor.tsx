@@ -29,9 +29,7 @@ export function DailyNoteEditor({ date, initialContent }: DailyNoteEditorProps) 
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" disabled={isPending}>
-          {isPending ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : null}
+          {isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
           Save Note
         </Button>
 
@@ -42,9 +40,7 @@ export function DailyNoteEditor({ date, initialContent }: DailyNoteEditorProps) 
           </span>
         )}
 
-        {state.error && (
-          <span className="text-xs text-destructive">{state.error}</span>
-        )}
+        {state.error && <span className="text-xs text-destructive">{state.error}</span>}
       </div>
     </form>
   );

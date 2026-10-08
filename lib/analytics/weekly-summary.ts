@@ -17,14 +17,9 @@ export function calculateWeeklySummary(
   const monthStart = daysInMonth[0];
   const monthEnd = daysInMonth[daysInMonth.length - 1];
 
-  const weekStarts = eachWeekOfInterval(
-    { start: monthStart, end: monthEnd },
-    { weekStartsOn },
-  );
+  const weekStarts = eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn });
 
-  const entrySet = new Set(
-    entries.filter((e) => e.completed).map((e) => `${e.habitId}:${e.date}`),
-  );
+  const entrySet = new Set(entries.filter((e) => e.completed).map((e) => `${e.habitId}:${e.date}`));
 
   const todayStr = format(today, 'yyyy-MM-dd');
 

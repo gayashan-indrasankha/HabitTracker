@@ -19,13 +19,17 @@ describe('server environment validation', () => {
   });
 
   it('requires HTTPS and TLS on Vercel production', () => {
-    expect(() => parseServerEnv({ ...validEnv, VERCEL_ENV: 'production' })).toThrow('Invalid production environment variables');
-    expect(parseServerEnv({
-      ...validEnv,
-      VERCEL_ENV: 'production',
-      DATABASE_URL: 'postgresql://user:pass@ep-example-pooler.neon.tech/db?sslmode=require',
-      BETTER_AUTH_URL: 'https://habitflow.example.com',
-      NEXT_PUBLIC_APP_URL: 'https://habitflow.example.com',
-    }).BETTER_AUTH_URL).toBe('https://habitflow.example.com');
+    expect(() => parseServerEnv({ ...validEnv, VERCEL_ENV: 'production' })).toThrow(
+      'Invalid production environment variables',
+    );
+    expect(
+      parseServerEnv({
+        ...validEnv,
+        VERCEL_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@ep-example-pooler.neon.tech/db?sslmode=require',
+        BETTER_AUTH_URL: 'https://habitflow.example.com',
+        NEXT_PUBLIC_APP_URL: 'https://habitflow.example.com',
+      }).BETTER_AUTH_URL,
+    ).toBe('https://habitflow.example.com');
   });
 });

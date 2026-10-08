@@ -75,9 +75,30 @@ describe('P3 evidence policies', () => {
   });
   it('compares English ratings across measured days without inventing missing scores', () => {
     const sessions = [
-      { date: '2026-10-08', fluency: 4, grammar: null, clarity: null, pronunciation: null, confidence: null },
-      { date: '2026-10-08', fluency: 2, grammar: null, clarity: null, pronunciation: null, confidence: null },
-      { date: '2026-10-01', fluency: 2, grammar: 3, clarity: null, pronunciation: null, confidence: null },
+      {
+        date: '2026-10-08',
+        fluency: 4,
+        grammar: null,
+        clarity: null,
+        pronunciation: null,
+        confidence: null,
+      },
+      {
+        date: '2026-10-08',
+        fluency: 2,
+        grammar: null,
+        clarity: null,
+        pronunciation: null,
+        confidence: null,
+      },
+      {
+        date: '2026-10-01',
+        fluency: 2,
+        grammar: 3,
+        clarity: null,
+        pronunciation: null,
+        confidence: null,
+      },
     ];
     const trends = englishRatingTrend(sessions);
     expect(trends.find((item) => item.dimension === 'fluency')).toMatchObject({

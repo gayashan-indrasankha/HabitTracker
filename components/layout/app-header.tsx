@@ -46,7 +46,13 @@ export function AppHeader({ user }: AppHeaderProps) {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-card/80 px-4 backdrop-blur-sm md:px-6 lg:px-8">
-      <div>{signOutError && <p role="alert" className="text-sm text-destructive">Could not sign out. Try again.</p>}</div>
+      <div>
+        {signOutError && (
+          <p role="alert" className="text-sm text-destructive">
+            Could not sign out. Try again.
+          </p>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <DropdownMenu>

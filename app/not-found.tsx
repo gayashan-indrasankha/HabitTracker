@@ -8,9 +8,7 @@ export default function NotFound() {
       <Activity className="h-12 w-12 text-muted-foreground" />
       <div>
         <h1 className="text-4xl font-bold">404</h1>
-        <p className="mt-2 text-muted-foreground">
-          This page could not be found.
-        </p>
+        <p className="mt-2 text-muted-foreground">This page could not be found.</p>
       </div>
       <Button asChild>
         <Link href="/dashboard">Go to Dashboard</Link>

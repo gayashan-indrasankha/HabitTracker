@@ -18,9 +18,7 @@ export default function NewHabitPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">New Habit</h1>
-          <p className="text-sm text-muted-foreground">
-            Define what you want to track
-          </p>
+          <p className="text-sm text-muted-foreground">Define what you want to track</p>
         </div>
       </div>
 

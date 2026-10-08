@@ -3,11 +3,7 @@ import { getUserSettings } from '@/lib/dal/user-settings';
 import { AppSidebar, MobileNav } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const settings = await getUserSettings(user.id);
 

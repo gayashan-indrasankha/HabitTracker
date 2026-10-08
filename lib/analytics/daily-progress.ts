@@ -13,9 +13,7 @@ export function calculateDailyProgress(
 ): DailyProgress[] {
   const todayStr = format(today, 'yyyy-MM-dd');
 
-  const entrySet = new Set(
-    entries.filter((e) => e.completed).map((e) => `${e.habitId}:${e.date}`),
-  );
+  const entrySet = new Set(entries.filter((e) => e.completed).map((e) => `${e.habitId}:${e.date}`));
 
   return daysInMonth.map((day) => {
     const dayStr = format(day, 'yyyy-MM-dd');

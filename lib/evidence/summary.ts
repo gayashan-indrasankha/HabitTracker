@@ -67,7 +67,9 @@ export function englishRatingTrend(
   sessions: ({ date: string } & Record<EnglishDimension, number | null>)[],
 ) {
   return englishDimensions.map((dimension) => {
-    const dates = [...new Set(sessions.filter((item) => item[dimension] != null).map((item) => item.date))].sort();
+    const dates = [
+      ...new Set(sessions.filter((item) => item[dimension] != null).map((item) => item.date)),
+    ].sort();
     const average = (date: string) => {
       const values = sessions
         .filter((item) => item.date === date && item[dimension] != null)

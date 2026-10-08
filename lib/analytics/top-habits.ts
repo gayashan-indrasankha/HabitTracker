@@ -16,7 +16,9 @@ export function calculateTopHabits(
   if (habits.length === 0) return [];
 
   const todayStr = format(today, 'yyyy-MM-dd');
-  const entrySet = new Set(entries.filter((entry) => entry.completed).map((entry) => `${entry.habitId}:${entry.date}`));
+  const entrySet = new Set(
+    entries.filter((entry) => entry.completed).map((entry) => `${entry.habitId}:${entry.date}`),
+  );
 
   return habits
     .map((habit) => {
@@ -39,6 +41,12 @@ export function calculateTopHabits(
       };
     })
     .filter((item) => item.total > 0)
-    .sort((a, b) => b.rate - a.rate || b.completed - a.completed || a.habit.name.localeCompare(b.habit.name) || a.habit.id.localeCompare(b.habit.id))
+    .sort(
+      (a, b) =>
+        b.rate - a.rate ||
+        b.completed - a.completed ||
+        a.habit.name.localeCompare(b.habit.name) ||
+        a.habit.id.localeCompare(b.habit.id),
+    )
     .slice(0, limit);
 }

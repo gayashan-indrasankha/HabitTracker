@@ -61,11 +61,7 @@ export async function createHabit(userId: string, input: HabitCreateInput) {
 /**
  * Update an existing habit (scoped to user).
  */
-export async function updateHabit(
-  habitId: string,
-  userId: string,
-  input: HabitUpdateInput,
-) {
+export async function updateHabit(habitId: string, userId: string, input: HabitUpdateInput) {
   const result = await db
     .update(habits)
     .set({
@@ -111,12 +107,16 @@ export async function unarchiveHabit(habitId: string, userId: string) {
 export async function reorderHabits(userId: string, orderedIds: string[]) {
   if (new Set(orderedIds).size !== orderedIds.length) throw new Error('Invalid habit order');
   await db.transaction(async (tx) => {
-    const owned = await tx.select({ id: habits.id }).from(habits)
+    const owned = await tx
+      .select({ id: habits.id })
+      .from(habits)
       .where(and(eq(habits.userId, userId), eq(habits.archived, false)));
-    if (owned.length !== orderedIds.length ||
-      owned.some(({ id }) => !orderedIds.includes(id))) throw new Error('Invalid habit order');
+    if (owned.length !== orderedIds.length || owned.some(({ id }) => !orderedIds.includes(id)))
+      throw new Error('Invalid habit order');
     for (const [index, id] of orderedIds.entries()) {
-      await tx.update(habits).set({ sortOrder: index, updatedAt: new Date() })
+      await tx
+        .update(habits)
+        .set({ sortOrder: index, updatedAt: new Date() })
         .where(and(eq(habits.id, id), eq(habits.userId, userId)));
     }
   });

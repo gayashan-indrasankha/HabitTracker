@@ -17,11 +17,7 @@ export async function getNoteByUserAndDate(userId: string, date: string) {
 /**
  * Get all notes for a user in a given month.
  */
-export async function getNotesByUserAndMonth(
-  userId: string,
-  year: number,
-  month: number,
-) {
+export async function getNotesByUserAndMonth(userId: string, year: number, month: number) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
@@ -69,7 +65,5 @@ export async function upsertNote(userId: string, date: string, content: string) 
  * Delete a note.
  */
 export async function deleteNote(userId: string, date: string) {
-  await db
-    .delete(dailyNotes)
-    .where(and(eq(dailyNotes.userId, userId), eq(dailyNotes.date, date)));
+  await db.delete(dailyNotes).where(and(eq(dailyNotes.userId, userId), eq(dailyNotes.date, date)));
 }

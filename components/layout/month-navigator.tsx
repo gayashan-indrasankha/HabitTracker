@@ -3,12 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
-import {
-  prevMonth,
-  nextMonth,
-  formatMonthLabel,
-  currentYearMonth,
-} from '@/lib/utils/date';
+import { prevMonth, nextMonth, formatMonthLabel, currentYearMonth } from '@/lib/utils/date';
 import { useCallback } from 'react';
 
 interface MonthNavigatorProps {
@@ -16,10 +11,7 @@ interface MonthNavigatorProps {
   timezone?: string;
 }
 
-export function MonthNavigator({
-  currentMonth,
-  timezone = 'UTC',
-}: MonthNavigatorProps) {
+export function MonthNavigator({ currentMonth, timezone = 'UTC' }: MonthNavigatorProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -62,17 +54,17 @@ export function MonthNavigator({
         <ChevronRight className="h-4 w-4" />
       </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(todayMonth)}
-          disabled={isCurrentMonth}
-          className="gap-1.5 text-muted-foreground"
-          aria-label="Current month"
-        >
-          <CalendarDays className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Current month</span>
-        </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate(todayMonth)}
+        disabled={isCurrentMonth}
+        className="gap-1.5 text-muted-foreground"
+        aria-label="Current month"
+      >
+        <CalendarDays className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Current month</span>
+      </Button>
     </div>
   );
 }

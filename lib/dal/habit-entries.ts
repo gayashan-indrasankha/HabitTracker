@@ -6,11 +6,7 @@ import { habitEntries, habits } from '@/lib/db/schema';
  * Get all habit entries for a user within a date range (for month view).
  * Single indexed query — no N+1.
  */
-export async function getEntriesByUserAndMonth(
-  userId: string,
-  year: number,
-  month: number,
-) {
+export async function getEntriesByUserAndMonth(userId: string, year: number, month: number) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
@@ -59,12 +55,14 @@ export async function getActiveHabitCompletionsThrough(userId: string, cutoff: s
     })
     .from(habitEntries)
     .innerJoin(habits, and(eq(habitEntries.habitId, habits.id), eq(habits.userId, userId)))
-    .where(and(
-      eq(habitEntries.userId, userId),
-      eq(habitEntries.completed, true),
-      eq(habits.archived, false),
-      lte(habitEntries.date, cutoff),
-    ));
+    .where(
+      and(
+        eq(habitEntries.userId, userId),
+        eq(habitEntries.completed, true),
+        eq(habits.archived, false),
+        lte(habitEntries.date, cutoff),
+      ),
+    );
 }
 
 /**
@@ -91,11 +89,7 @@ export async function upsertHabitEntry(
 /**
  * Delete a habit entry (mark as not completed by removing the row).
  */
-export async function deleteHabitEntry(
-  userId: string,
-  habitId: string,
-  date: string,
-) {
+export async function deleteHabitEntry(userId: string, habitId: string, date: string) {
   await db
     .delete(habitEntries)
     .where(

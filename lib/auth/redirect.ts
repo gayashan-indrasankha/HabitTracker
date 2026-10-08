@@ -1,4 +1,13 @@
-const APP_PATHS = ['/today', '/week', '/goals', '/review', '/dashboard', '/habits', '/notes', '/settings'];
+const APP_PATHS = [
+  '/today',
+  '/week',
+  '/goals',
+  '/review',
+  '/dashboard',
+  '/habits',
+  '/notes',
+  '/settings',
+];
 
 /** Limit post-login navigation to application paths on this origin. */
 export function safeNextPath(value: string | undefined): string {

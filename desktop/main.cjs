@@ -15,7 +15,8 @@ if (process.env.HABITFLOW_DESKTOP_DATA_DIR) {
 }
 
 function persistentAuthSecret(dir) {
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows secure storage is unavailable.');
+  if (!safeStorage.isEncryptionAvailable())
+    throw new Error('Windows secure storage is unavailable.');
   const file = path.join(dir, 'auth-secret.bin');
   if (existsSync(file)) return safeStorage.decryptString(readFileSync(file)).toString();
   const secret = crypto.randomBytes(48).toString('base64url');
@@ -35,12 +36,18 @@ async function waitForServer(url, child) {
   for (let attempt = 0; attempt < 120; attempt++) {
     if (child.exitCode !== null) {
       const detail = output.trim();
-      throw new Error(detail ? `The application server stopped during startup.\n\n${detail}` : 'The application server stopped during startup.');
+      throw new Error(
+        detail
+          ? `The application server stopped during startup.\n\n${detail}`
+          : 'The application server stopped during startup.',
+      );
     }
     try {
       const response = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(1000) });
       if (response.ok) return;
-    } catch { /* Server is still starting. */ }
+    } catch {
+      /* Server is still starting. */
+    }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error('The application server did not become ready.');
@@ -76,7 +83,10 @@ async function launch() {
   });
   await waitForServer(origin, server);
   const window = new BrowserWindow({
-    width: 1380, height: 900, minWidth: 370, minHeight: 600,
+    width: 1380,
+    height: 900,
+    minWidth: 370,
+    minHeight: 600,
     show: false,
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
   });
@@ -102,13 +112,26 @@ async function shutdown() {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => BrowserWindow.getAllWindows()[0]?.focus());
-  app.whenReady().then(launch).catch(async (error) => {
-    try {
-      writeFileSync(path.join(app.getPath('userData'), 'startup-error.log'), error instanceof Error ? error.message : 'Unknown startup error');
-    } catch { /* The user data directory may itself be unavailable. */ }
-    dialog.showErrorBox('HabitFlow could not start', error instanceof Error ? error.message : 'Unknown startup error');
-    await shutdown();
-    app.quit();
+  app
+    .whenReady()
+    .then(launch)
+    .catch(async (error) => {
+      try {
+        writeFileSync(
+          path.join(app.getPath('userData'), 'startup-error.log'),
+          error instanceof Error ? error.message : 'Unknown startup error',
+        );
+      } catch {
+        /* The user data directory may itself be unavailable. */
+      }
+      dialog.showErrorBox(
+        'HabitFlow could not start',
+        error instanceof Error ? error.message : 'Unknown startup error',
+      );
+      await shutdown();
+      app.quit();
+    });
+  app.on('window-all-closed', () => {
+    void shutdown().finally(() => app.quit());
   });
-  app.on('window-all-closed', () => { void shutdown().finally(() => app.quit()); });
 }

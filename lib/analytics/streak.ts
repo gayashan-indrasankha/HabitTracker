@@ -19,7 +19,13 @@ export function calculateStreaks(entries: StreakCompletion[], cutoff: string) {
   const completedDates = new Set(
     entries
       .filter((entry) => {
-        if (entry.archived || entry.date < entry.startDate || (entry.endDate && entry.date > entry.endDate) || entry.date > cutoff) return false;
+        if (
+          entry.archived ||
+          entry.date < entry.startDate ||
+          (entry.endDate && entry.date > entry.endDate) ||
+          entry.date > cutoff
+        )
+          return false;
         const [year, month, day] = entry.date.split('-').map(Number);
         const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
         return isScheduledWeekday(entry.schedule, weekday);

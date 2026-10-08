@@ -737,7 +737,9 @@ export default async function EvidencePage({
                 {item.externalRating != null ? ` · External rating ${item.externalRating}/5` : ''}
               </p>
               {item.correct != null && item.total != null && (
-                <p>Recorded result: {item.correct}/{item.total} correct</p>
+                <p>
+                  Recorded result: {item.correct}/{item.total} correct
+                </p>
               )}
               {item.weaknesses && <p>Weakness: {item.weaknesses}</p>}
               {item.nextAction && <p>Next: {item.nextAction}</p>}
@@ -859,12 +861,17 @@ export default async function EvidencePage({
             ? 'More assessed sessions are needed for a trend.'
             : 'Compare dated self-ratings below; practice time alone does not establish fluency.'}
         </p>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5" aria-label="English rating trends">
+        <div
+          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+          aria-label="English rating trends"
+        >
           {englishTrends.map((item) => (
             <div key={item.dimension} className="rounded-lg border p-2 text-sm">
               <p className="font-medium capitalize">{item.dimension}</p>
               <p>
-                {item.latest == null ? 'Not assessed' : `Latest rated day ${item.latest.toFixed(1)}/5`}
+                {item.latest == null
+                  ? 'Not assessed'
+                  : `Latest rated day ${item.latest.toFixed(1)}/5`}
               </p>
               <p className="text-xs text-muted-foreground">
                 {item.change == null

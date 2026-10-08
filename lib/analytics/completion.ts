@@ -18,9 +18,7 @@ export function calculateCompletionRate(
     return { rate: 0, completed: 0, total: 0 };
   }
 
-  const entrySet = new Set(
-    entries.filter((e) => e.completed).map((e) => `${e.habitId}:${e.date}`),
-  );
+  const entrySet = new Set(entries.filter((e) => e.completed).map((e) => `${e.habitId}:${e.date}`));
 
   let totalPossible = 0;
   let totalCompleted = 0;

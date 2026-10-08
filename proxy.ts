@@ -3,7 +3,16 @@ import type { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth/server';
 
 // Routes that require authentication
-const PROTECTED_PREFIXES = ['/today', '/week', '/goals', '/review', '/dashboard', '/habits', '/notes', '/settings'];
+const PROTECTED_PREFIXES = [
+  '/today',
+  '/week',
+  '/goals',
+  '/review',
+  '/dashboard',
+  '/habits',
+  '/notes',
+  '/settings',
+];
 
 // Routes that should redirect authenticated users away (sign-in, sign-up)
 const AUTH_ROUTES = ['/login', '/register', '/sign-in', '/sign-up'];
@@ -15,9 +24,7 @@ function matchesRoute(pathname: string, route: string) {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
-    matchesRoute(pathname, prefix),
-  );
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => matchesRoute(pathname, prefix));
   const isAuthRoute = AUTH_ROUTES.some((route) => matchesRoute(pathname, route));
 
   if (!isProtected && !isAuthRoute) {

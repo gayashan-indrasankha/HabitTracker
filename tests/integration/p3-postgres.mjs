@@ -50,13 +50,15 @@ try {
     );
     await sql`INSERT INTO milestone_review_history (user_id,task_id,state,reviewer,criteria_snapshot) VALUES ('owner',${task.id},'needs_improvements','Self','[{"title":"Tests pass","met":false}]')`;
     await sql`INSERT INTO milestone_review_history (user_id,task_id,state,reviewer,criteria_snapshot) VALUES ('owner',${task.id},'meets_criteria','Self','[{"title":"Tests pass","met":true}]')`;
-    const reviewSnapshots = await sql`SELECT state,criteria_snapshot FROM milestone_review_history WHERE task_id=${task.id} ORDER BY created_at,id`;
+    const reviewSnapshots =
+      await sql`SELECT state,criteria_snapshot FROM milestone_review_history WHERE task_id=${task.id} ORDER BY created_at,id`;
     assert.equal(reviewSnapshots.length, 2);
     assert(reviewSnapshots.some((row) => row.criteria_snapshot.includes('"met":false')));
     assert(reviewSnapshots.some((row) => row.criteria_snapshot.includes('"met":true')));
     const [topicInterview] =
       await sql`INSERT INTO interview_topics (user_id,category,title,role_track) VALUES ('owner','SQL','JOINs','Shared') RETURNING id`;
-    const [scoredInterview] = await sql`INSERT INTO interview_practices (user_id,topic_id,date,role_track,type,correct,total) VALUES ('owner',${topicInterview.id},'2026-10-08','SE','technical_question',2,5) RETURNING correct,total`;
+    const [scoredInterview] =
+      await sql`INSERT INTO interview_practices (user_id,topic_id,date,role_track,type,correct,total) VALUES ('owner',${topicInterview.id},'2026-10-08','SE','technical_question',2,5) RETURNING correct,total`;
     assert.equal(scoredInterview.correct, 2);
     assert.equal(scoredInterview.total, 5);
     await assert.rejects(

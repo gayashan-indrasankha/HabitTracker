@@ -13,9 +13,7 @@ export function TopHabitsList({ topHabits }: TopHabitsListProps) {
       </CardHeader>
       <CardContent>
         {topHabits.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            No data yet
-          </p>
+          <p className="py-4 text-center text-sm text-muted-foreground">No data yet</p>
         ) : (
           <ol className="space-y-3">
             {topHabits.map((item, index) => (
@@ -25,9 +23,7 @@ export function TopHabitsList({ topHabits }: TopHabitsListProps) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="truncate text-xs font-medium">
-                      {item.habit.name}
-                    </span>
+                    <span className="truncate text-xs font-medium">{item.habit.name}</span>
                     <span className="ml-2 shrink-0 text-xs tabular-nums text-muted-foreground">
                       {item.rate}%
                     </span>

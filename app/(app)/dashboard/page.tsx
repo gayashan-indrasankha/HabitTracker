@@ -34,7 +34,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const params = await searchParams;
   const today = getTodayInTimezone(settings.timezone);
-  const selectedMonth = params.month && isValidYearMonth(params.month) ? params.month : currentYearMonth(settings.timezone);
+  const selectedMonth =
+    params.month && isValidYearMonth(params.month)
+      ? params.month
+      : currentYearMonth(settings.timezone);
 
   const { year, month } = parseYearMonth(selectedMonth);
   const daysInMonth = getDaysInMonth(year, month);
@@ -68,17 +71,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[.15em] text-primary">Build better, every day</p>
-          <h1 className="text-3xl font-extrabold tracking-tight">Habit tracker</h1>
-          <p className="text-sm text-muted-foreground">
-            Your monthly progress at a glance.
+          <p className="mb-2 text-xs font-bold uppercase tracking-[.15em] text-primary">
+            Build better, every day
           </p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Habit tracker</h1>
+          <p className="text-sm text-muted-foreground">Your monthly progress at a glance.</p>
         </div>
         <Suspense fallback={null}>
-          <MonthNavigator
-            currentMonth={selectedMonth}
-            timezone={settings.timezone}
-          />
+          <MonthNavigator currentMonth={selectedMonth} timezone={settings.timezone} />
         </Suspense>
       </div>
 
@@ -93,20 +93,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           />
         </Suspense>
 
-        <Suspense
-          fallback={
-            <div className="h-96 animate-pulse rounded-xl bg-muted" />
-          }
-        >
+        <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-muted" />}>
           <AnalyticsPanel
             habits={habits}
             entries={entries}
             daysInMonth={daysInMonth}
             today={today}
             stats={stats}
-            weekStartsOn={
-              settings.weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6
-            }
+            weekStartsOn={settings.weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6}
             currentStreak={streaks.current}
             bestStreak={streaks.best}
             streakCutoff={streakCutoff}
