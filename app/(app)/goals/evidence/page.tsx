@@ -18,7 +18,7 @@ import {
 } from '@/lib/db/schema';
 import { getGoals, getProjects, getSubjects, getTasks } from '@/lib/dal/life';
 import { getUserSettings } from '@/lib/dal/user-settings';
-import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
+import { getTodayInTimezone, toDateString, toZonedTime } from '@/lib/utils/date';
 import { addCalendarDays } from '@/lib/planning/time-blocks';
 import {
   pipelineSummary,
@@ -47,6 +47,8 @@ import {
   saveMilestoneReviewAction,
   saveTopicAction,
 } from '@/lib/actions/evidence-actions';
+
+export const metadata = { title: 'Evidence & Career Readiness | HabitFlow' };
 
 const field = 'mt-1 min-h-10 w-full rounded-lg border bg-background px-2';
 const label = 'block text-sm';
@@ -77,6 +79,7 @@ export default async function EvidencePage({
   const userId = (await requireUser()).id;
   const settings = await getUserSettings(userId);
   const today = toDateString(getTodayInTimezone(settings.timezone));
+  const localDate = (instant: Date) => toDateString(toZonedTime(instant, settings.timezone));
   const since = addCalendarDays(today, -180);
   const weightSince = addCalendarDays(today, -365);
   const query = await searchParams;
@@ -236,7 +239,10 @@ export default async function EvidencePage({
         </nav>
       </header>
 
-      <section id="university" className="rounded-2xl border bg-card p-5 space-y-4">
+      <section
+        id="university"
+        className="scroll-mt-32 space-y-4 rounded-2xl border bg-card p-5 lg:scroll-mt-20"
+      >
         <div>
           <h2 className="text-xl font-bold">University topic mastery</h2>
           <p className="text-sm text-muted-foreground">
@@ -410,7 +416,10 @@ export default async function EvidencePage({
         {!topics.length && <p className="text-sm text-muted-foreground">No topics assessed yet.</p>}
       </section>
 
-      <section id="portfolio" className="rounded-2xl border bg-card p-5 space-y-3">
+      <section
+        id="portfolio"
+        className="scroll-mt-32 space-y-3 rounded-2xl border bg-card p-5 lg:scroll-mt-20"
+      >
         <div>
           <h2 className="text-xl font-bold">Portfolio milestone quality</h2>
           <p className="text-sm text-muted-foreground">
@@ -501,7 +510,7 @@ export default async function EvidencePage({
                           .filter((item) => item.taskId === task.id)
                           .map((item) => (
                             <li key={item.id}>
-                              {item.reviewedOn ?? item.createdAt.toISOString().slice(0, 10)} ·{' '}
+                              {item.reviewedOn ?? localDate(item.createdAt)} ·{' '}
                               {item.state.replaceAll('_', ' ')} · {item.reviewer} · Criteria
                               snapshot: {item.criteriaSnapshot}
                             </li>
@@ -588,7 +597,10 @@ export default async function EvidencePage({
         )}
       </section>
 
-      <section id="interviews" className="rounded-2xl border bg-card p-5 space-y-3">
+      <section
+        id="interviews"
+        className="scroll-mt-32 space-y-3 rounded-2xl border bg-card p-5 lg:scroll-mt-20"
+      >
         <h2 className="text-xl font-bold">Technical interview practice</h2>
         <p className="text-sm text-muted-foreground">
           Rubric: 1 = cannot yet explain or solve; 3 = partly correct with prompting; 5 = accurate,
@@ -759,7 +771,10 @@ export default async function EvidencePage({
         </div>
       </section>
 
-      <section id="english" className="rounded-2xl border bg-card p-5 space-y-3">
+      <section
+        id="english"
+        className="scroll-mt-32 space-y-3 rounded-2xl border bg-card p-5 lg:scroll-mt-20"
+      >
         <h2 className="text-xl font-bold">English communication</h2>
         <p className="text-sm text-muted-foreground">
           Self-rating anchor for each dimension: 1 = frequent difficulty; 3 = understandable with
@@ -924,7 +939,10 @@ export default async function EvidencePage({
         </div>
       </section>
 
-      <section id="weight" className="rounded-2xl border bg-card p-5 space-y-3">
+      <section
+        id="weight"
+        className="scroll-mt-32 space-y-3 rounded-2xl border bg-card p-5 lg:scroll-mt-20"
+      >
         <h2 className="text-xl font-bold">Recorded body weight</h2>
         <p className="text-sm text-muted-foreground">
           Actual kg measurements only. Same-day readings are averaged once for the daily point;
@@ -1036,7 +1054,10 @@ export default async function EvidencePage({
         </details>
       </section>
 
-      <section id="applications" className="rounded-2xl border bg-card p-5 space-y-3">
+      <section
+        id="applications"
+        className="scroll-mt-32 space-y-3 rounded-2xl border bg-card p-5 lg:scroll-mt-20"
+      >
         <h2 className="text-xl font-bold">Internship applications</h2>
         <p className="text-sm text-muted-foreground">
           Saved opportunities are not submitted applications. Stages reflect only changes you
@@ -1272,8 +1293,7 @@ export default async function EvidencePage({
                     .filter((event) => event.applicationId === item.id)
                     .map((event) => (
                       <li key={event.id}>
-                        {event.changedAt.toISOString().slice(0, 10)}: {event.fromStage ?? 'New'} →{' '}
-                        {event.toStage}
+                        {localDate(event.changedAt)}: {event.fromStage ?? 'New'} → {event.toStage}
                       </li>
                     ))}
                 </ol>
