@@ -3,9 +3,12 @@ import { notFound } from 'next/navigation';
 import { getHabitByIdAndUser } from '@/lib/dal/habits';
 import { updateHabitAction } from '@/lib/actions/habit-actions';
 import { HabitForm } from '@/components/habits/habit-form';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+
+export const metadata = { title: 'Edit Habit | HabitFlow' };
 
 interface EditHabitPageProps {
   params: Promise<{ id: string }>;

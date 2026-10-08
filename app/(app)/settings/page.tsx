@@ -3,6 +3,8 @@ import { getUserSettings } from '@/lib/dal/user-settings';
 import { SettingsForm } from '@/components/settings/settings-form';
 import Link from 'next/link';
 
+export const metadata = { title: 'Settings | HabitFlow' };
+
 export default async function SettingsPage() {
   const user = await requireUser();
   const settings = await getUserSettings(user.id);

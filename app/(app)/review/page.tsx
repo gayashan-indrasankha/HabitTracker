@@ -12,6 +12,8 @@ import { ActionForm } from '@/components/life/action-form';
 import { EvidenceReview } from '@/components/life/evidence-review';
 import { weightTrend } from '@/lib/evidence/summary';
 
+export const metadata = { title: 'Review & Insights | HabitFlow' };
+
 const prompts = [
   ['academic', 'Academic progress'],
   ['industry', 'Industry Project progress'],

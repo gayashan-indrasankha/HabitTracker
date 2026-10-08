@@ -28,6 +28,8 @@ interface DashboardPageProps {
   searchParams: Promise<{ month?: string }>;
 }
 
+export const metadata = { title: 'Home | HabitFlow' };
+
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const userId = (await requireUser()).id;
   const settings = await getUserSettings(userId);

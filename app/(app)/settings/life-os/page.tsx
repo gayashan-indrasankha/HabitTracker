@@ -2,6 +2,8 @@ import { requireUser } from '@/lib/auth/session';
 import { applyLifeTemplateAction } from '@/lib/actions/template-actions';
 import { ActionForm } from '@/components/life/action-form';
 
+export const metadata = { title: 'Life OS Setup | HabitFlow' };
+
 const sections = [
   [
     'university',
