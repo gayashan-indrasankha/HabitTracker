@@ -5,7 +5,8 @@ import { parseServerEnv } from '@/lib/env';
 
 const env = parseServerEnv(process.env);
 
-// Prevent multiple instances in development (HMR)
+// Share one pool across route chunks and development reloads. The embedded socket
+// multiplexes one PGlite connection and needs requests to use the same pool.
 const globalForDb = globalThis as unknown as {
   connection: postgres.Sql | undefined;
 };
@@ -14,13 +15,12 @@ const connection =
   globalForDb.connection ??
   postgres(env.DATABASE_URL, {
     max: process.env.NODE_ENV === 'production' ? 1 : 10,
+    prepare: false,
     connect_timeout: 10,
     idle_timeout: 20,
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForDb.connection = connection;
-}
+globalForDb.connection = connection;
 
 export const db = drizzle(connection, { schema });
 export type DB = typeof db;

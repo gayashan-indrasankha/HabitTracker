@@ -247,7 +247,9 @@ async function verifyFresh(engine, makeDatabase) {
     const ids = await fixture(database.query, 12);
     await database.migrate(folder);
     await assertPreserved(database.query, ids, 12);
-    const count = await database.query('SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations');
+    const count = await database.query(
+      'SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations',
+    );
     assert.equal(count[0].count, fullJournal.entries.length);
     console.log(`${engine} fresh migration: PASS`);
   } finally {
