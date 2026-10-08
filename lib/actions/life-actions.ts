@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/session';
@@ -14,13 +14,24 @@ import {
   subjects,
   tasks,
   timeBlockExceptions,
+  timeBlockRevisions,
   timeBlocks,
+  users,
   weeklyReviews,
 } from '@/lib/db/schema';
-import { getBlocksForRange } from '@/lib/dal/life';
 import { getUserSettings } from '@/lib/dal/user-settings';
-import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
-import { expandBlocks, occursOn, overlaps, weekdayIndex } from '@/lib/planning/time-blocks';
+import { getTodayInTimezone, serverNow, toDateString } from '@/lib/utils/date';
+import {
+  expandBlocks,
+  futureBoundaryDates,
+  occursOn,
+  overlaps,
+  ruleOn,
+  sameOccurrence,
+  weekdayIndex,
+} from '@/lib/planning/time-blocks';
+import { scheduledInstant, statusTimeError } from '@/lib/planning/occurrence-time';
+import { planPriorityOrder } from '@/lib/planning/priorities';
 import {
   BlockSchema,
   DayModeSchema,
@@ -41,6 +52,12 @@ function refresh() {
 }
 const nullable = (form: FormData, key: string) => String(form.get(key) ?? '');
 const checked = (form: FormData, key: string) => form.get(key) === 'on';
+const weekdays = (form: FormData) =>
+  form.has('weekdaySelection')
+    ? Array.from({ length: 7 }, (_, index) =>
+        form.getAll('weekday').includes(String(index)) ? '1' : '0',
+      ).join('')
+    : nullable(form, 'weekdayMask');
 
 export async function createGoalAction(
   _: LifeActionState,
@@ -90,6 +107,129 @@ export async function createProjectAction(
   await db.insert(projects).values({ userId, ...parsed.data });
   refresh();
   return { success: 'Project created.' };
+}
+
+export async function editGoalAction(_: LifeActionState, form: FormData): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const id = z.uuid().safeParse(form.get('id'));
+  if (!id.success) return fail('Goal not found.');
+  const [current] = await db
+    .select()
+    .from(goals)
+    .where(and(eq(goals.userId, userId), eq(goals.id, id.data)))
+    .limit(1);
+  if (!current) return fail('Goal not found.');
+  const field = (key: string, saved: string | number | null) =>
+    form.has(key) ? nullable(form, key) : String(saved ?? '');
+  const parsed = GoalSchema.safeParse({
+    area: field('area', current.area),
+    title: field('title', current.title),
+    description: field('description', current.description),
+    targetDate: field('targetDate', current.targetDate),
+    priority: field('priority', current.priority),
+    targetValue: field('targetValue', current.targetValue),
+    targetUnit: field('targetUnit', current.targetUnit),
+  });
+  const status = z
+    .enum(['active', 'paused', 'completed', 'cancelled'])
+    .safeParse(form.has('status') ? form.get('status') : current.status);
+  if (!parsed.success) return invalid(parsed.error);
+  if (!status.success) return invalid(status.error);
+  await db
+    .update(goals)
+    .set({ ...parsed.data, status: status.data, updatedAt: new Date() })
+    .where(and(eq(goals.userId, userId), eq(goals.id, id.data)));
+  refresh();
+  return { success: 'Goal saved.' };
+}
+
+export async function editProjectAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const id = z.uuid().safeParse(form.get('id'));
+  if (!id.success) return fail('Project not found.');
+  const [current] = await db
+    .select()
+    .from(projects)
+    .where(and(eq(projects.userId, userId), eq(projects.id, id.data)))
+    .limit(1);
+  if (!current) return fail('Project not found.');
+  const field = (key: string, saved: string | null) =>
+    form.has(key) ? nullable(form, key) : (saved ?? '');
+  const parsed = ProjectSchema.safeParse({
+    name: field('name', current.name),
+    description: field('description', current.description),
+    type: field('type', current.type),
+    goalId: field('goalId', current.goalId),
+    deadline: field('deadline', current.deadline),
+    repositoryUrl: field('repositoryUrl', current.repositoryUrl),
+  });
+  const status = z
+    .enum(['active', 'paused', 'completed', 'cancelled'])
+    .safeParse(form.has('status') ? form.get('status') : current.status);
+  if (!parsed.success) return invalid(parsed.error);
+  if (!status.success) return invalid(status.error);
+  if (
+    parsed.data.goalId &&
+    !(
+      await db
+        .select({ id: goals.id })
+        .from(goals)
+        .where(and(eq(goals.userId, userId), eq(goals.id, parsed.data.goalId)))
+        .limit(1)
+    )[0]
+  )
+    return fail('Goal not found.');
+  await db
+    .update(projects)
+    .set({ ...parsed.data, status: status.data, updatedAt: new Date() })
+    .where(and(eq(projects.userId, userId), eq(projects.id, id.data)));
+  refresh();
+  return { success: 'Project saved.' };
+}
+
+export async function setGoalArchiveAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const parsed = z
+    .object({ id: z.uuid(), archive: z.enum(['yes', 'no']) })
+    .safeParse({ id: form.get('id'), archive: form.get('archive') });
+  if (!parsed.success) return invalid(parsed.error);
+  if (parsed.data.archive === 'yes' && form.get('confirm') !== 'yes')
+    return fail('Confirm archiving this goal.');
+  const changed = await db
+    .update(goals)
+    .set({ archivedAt: parsed.data.archive === 'yes' ? new Date() : null, updatedAt: new Date() })
+    .where(and(eq(goals.userId, userId), eq(goals.id, parsed.data.id)))
+    .returning({ id: goals.id });
+  if (!changed.length) return fail('Goal not found.');
+  refresh();
+  return { success: parsed.data.archive === 'yes' ? 'Goal archived.' : 'Goal restored.' };
+}
+
+export async function setProjectArchiveAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const parsed = z
+    .object({ id: z.uuid(), archive: z.enum(['yes', 'no']) })
+    .safeParse({ id: form.get('id'), archive: form.get('archive') });
+  if (!parsed.success) return invalid(parsed.error);
+  if (parsed.data.archive === 'yes' && form.get('confirm') !== 'yes')
+    return fail('Confirm archiving this project.');
+  const changed = await db
+    .update(projects)
+    .set({ archivedAt: parsed.data.archive === 'yes' ? new Date() : null, updatedAt: new Date() })
+    .where(and(eq(projects.userId, userId), eq(projects.id, parsed.data.id)))
+    .returning({ id: projects.id });
+  if (!changed.length) return fail('Project not found.');
+  refresh();
+  return { success: parsed.data.archive === 'yes' ? 'Project archived.' : 'Project restored.' };
 }
 
 export async function updateGoalStatusAction(
@@ -222,14 +362,56 @@ export async function editTaskAction(_: LifeActionState, form: FormData): Promis
     )[0]
   )
     return fail('Project not found.');
-  await db
-    .update(tasks)
-    .set({
-      ...parsed.data,
-      ...(parsed.data.scheduledDate !== current.scheduledDate ? { dailyPriority: null } : {}),
-      updatedAt: new Date(),
-    })
-    .where(and(eq(tasks.userId, userId), eq(tasks.id, id.data)));
+  try {
+    await db.transaction(async (tx) => {
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for('update');
+      const [locked] = await tx
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, id.data)))
+        .limit(1);
+      if (!locked) throw new Error('missing');
+      const changedDate = parsed.data.scheduledDate !== locked.scheduledDate;
+      await tx
+        .update(tasks)
+        .set({
+          ...parsed.data,
+          ...(changedDate ? { dailyPriority: null } : {}),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, id.data)));
+      if (changedDate && locked.scheduledDate && locked.dailyPriority) {
+        const remaining = await tx
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.userId, userId),
+              eq(tasks.scheduledDate, locked.scheduledDate),
+              isNotNull(tasks.dailyPriority),
+            ),
+          );
+        remaining.sort((a, b) => (a.dailyPriority ?? 9) - (b.dailyPriority ?? 9));
+        await tx
+          .update(tasks)
+          .set({ dailyPriority: null })
+          .where(
+            and(
+              eq(tasks.userId, userId),
+              eq(tasks.scheduledDate, locked.scheduledDate),
+              isNotNull(tasks.dailyPriority),
+            ),
+          );
+        for (let index = 0; index < remaining.length; index++)
+          await tx
+            .update(tasks)
+            .set({ dailyPriority: index + 1 })
+            .where(and(eq(tasks.userId, userId), eq(tasks.id, remaining[index].id)));
+      }
+    });
+  } catch {
+    return fail('Could not edit this task. Refresh and try again.');
+  }
   refresh();
   return { success: 'Task edited.' };
 }
@@ -253,51 +435,138 @@ export async function updateTaskAction(
       actualMinutes: form.get('actualMinutes') ?? undefined,
     });
   if (!parsed.success) return invalid(parsed.error);
-  const previous = (
-    await db
-      .select({ status: tasks.status, completedAt: tasks.completedAt })
-      .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data.id)))
-      .limit(1)
-  )[0];
-  if (!previous) return fail('Task not found.');
-  const updated = await db
-    .update(tasks)
-    .set({
-      status: parsed.data.status,
-      ...(parsed.data.scheduledDate !== undefined
-        ? { scheduledDate: parsed.data.scheduledDate || null, dailyPriority: null }
-        : {}),
-      ...(parsed.data.actualMinutes !== undefined
-        ? { actualMinutes: parsed.data.actualMinutes === '' ? null : parsed.data.actualMinutes }
-        : {}),
-      completedAt: parsed.data.status === 'done' ? (previous.completedAt ?? new Date()) : null,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data.id)))
-    .returning({ id: tasks.id });
-  if (!updated.length) return fail('Task not found.');
+  try {
+    await db.transaction(async (tx) => {
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for('update');
+      const [previous] = await tx
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data.id)))
+        .limit(1);
+      if (!previous) throw new Error('missing');
+      const changedDate =
+        parsed.data.scheduledDate !== undefined &&
+        (parsed.data.scheduledDate || null) !== previous.scheduledDate;
+      await tx
+        .update(tasks)
+        .set({
+          status: parsed.data.status,
+          ...(parsed.data.scheduledDate !== undefined
+            ? {
+                scheduledDate: parsed.data.scheduledDate || null,
+                ...(changedDate ? { dailyPriority: null } : {}),
+              }
+            : {}),
+          ...(parsed.data.actualMinutes !== undefined
+            ? { actualMinutes: parsed.data.actualMinutes === '' ? null : parsed.data.actualMinutes }
+            : {}),
+          completedAt: parsed.data.status === 'done' ? (previous.completedAt ?? new Date()) : null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data.id)));
+      if (changedDate && previous.scheduledDate && previous.dailyPriority) {
+        const remaining = await tx
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.userId, userId),
+              eq(tasks.scheduledDate, previous.scheduledDate),
+              isNotNull(tasks.dailyPriority),
+            ),
+          );
+        remaining.sort((a, b) => (a.dailyPriority ?? 9) - (b.dailyPriority ?? 9));
+        await tx
+          .update(tasks)
+          .set({ dailyPriority: null })
+          .where(
+            and(
+              eq(tasks.userId, userId),
+              eq(tasks.scheduledDate, previous.scheduledDate),
+              isNotNull(tasks.dailyPriority),
+            ),
+          );
+        for (let index = 0; index < remaining.length; index++)
+          await tx
+            .update(tasks)
+            .set({ dailyPriority: index + 1 })
+            .where(and(eq(tasks.userId, userId), eq(tasks.id, remaining[index].id)));
+      }
+    });
+  } catch {
+    return fail('Could not update this task. Refresh and try again.');
+  }
   refresh();
   return { success: 'Task updated.' };
 }
 
-export async function selectPriorityAction(
+export async function managePriorityAction(
   _: LifeActionState,
   form: FormData,
 ): Promise<LifeActionState> {
   const userId = (await requireUser()).id;
   const parsed = z
-    .object({ id: z.uuid(), date: z.iso.date(), rank: z.coerce.number().int().min(1).max(3) })
-    .safeParse({ id: form.get('id'), date: form.get('date'), rank: form.get('rank') });
+    .object({
+      id: z.uuid(),
+      date: z.iso.date(),
+      operation: z.enum(['assign', 'move', 'replace', 'remove']),
+      rank: z.coerce.number().int().min(1).max(3).optional(),
+      confirm: z.string().optional(),
+    })
+    .safeParse({
+      id: form.get('id'),
+      date: form.get('date'),
+      operation: form.get('operation'),
+      rank: form.get('rank') || undefined,
+      confirm: form.get('confirm') || undefined,
+    });
   if (!parsed.success) return invalid(parsed.error);
+  if (parsed.data.operation === 'replace' && parsed.data.confirm !== 'yes')
+    return fail('Confirm which priority to replace.');
   try {
     await db.transaction(async (tx) => {
-      const owned = await tx
-        .select({ id: tasks.id })
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for('update');
+      const [target] = await tx
+        .select()
         .from(tasks)
-        .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, userId)))
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data.id)))
         .limit(1);
-      if (!owned.length) throw new Error('missing');
+      if (!target || (target.status === 'cancelled' && parsed.data.operation !== 'remove'))
+        throw new Error('Task is unavailable.');
+      const destination = await tx
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.userId, userId),
+            eq(tasks.scheduledDate, parsed.data.date),
+            isNotNull(tasks.dailyPriority),
+          ),
+        );
+      const current = destination
+        .sort((a, b) => (a.dailyPriority ?? 9) - (b.dailyPriority ?? 9))
+        .map((item) => item.id);
+      const next = planPriorityOrder(current, target.id, parsed.data.operation, parsed.data.rank);
+      const sourceDate =
+        target.dailyPriority && target.scheduledDate !== parsed.data.date
+          ? target.scheduledDate
+          : null;
+      const source = sourceDate
+        ? await tx
+            .select()
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.userId, userId),
+                eq(tasks.scheduledDate, sourceDate),
+                isNotNull(tasks.dailyPriority),
+              ),
+            )
+        : [];
+      const sourceOrder = source
+        .sort((a, b) => (a.dailyPriority ?? 9) - (b.dailyPriority ?? 9))
+        .map((item) => item.id)
+        .filter((id) => id !== target.id);
       await tx
         .update(tasks)
         .set({ dailyPriority: null })
@@ -305,23 +574,55 @@ export async function selectPriorityAction(
           and(
             eq(tasks.userId, userId),
             eq(tasks.scheduledDate, parsed.data.date),
-            eq(tasks.dailyPriority, parsed.data.rank),
+            isNotNull(tasks.dailyPriority),
           ),
         );
-      await tx
-        .update(tasks)
-        .set({
-          dailyPriority: parsed.data.rank,
-          scheduledDate: parsed.data.date,
-          updatedAt: new Date(),
-        })
-        .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, userId)));
+      if (sourceDate)
+        await tx
+          .update(tasks)
+          .set({ dailyPriority: null })
+          .where(
+            and(
+              eq(tasks.userId, userId),
+              eq(tasks.scheduledDate, sourceDate),
+              isNotNull(tasks.dailyPriority),
+            ),
+          );
+      for (let index = 0; index < sourceOrder.length; index++)
+        await tx
+          .update(tasks)
+          .set({ dailyPriority: index + 1 })
+          .where(and(eq(tasks.userId, userId), eq(tasks.id, sourceOrder[index])));
+      for (let index = 0; index < next.length; index++)
+        await tx
+          .update(tasks)
+          .set({
+            dailyPriority: index + 1,
+            ...(next[index] === target.id && parsed.data.operation !== 'remove'
+              ? { scheduledDate: parsed.data.date }
+              : {}),
+            updatedAt: new Date(),
+          })
+          .where(and(eq(tasks.userId, userId), eq(tasks.id, next[index])));
     });
-  } catch {
-    return fail('Could not select this priority. Refresh and try again.');
+  } catch (error) {
+    return fail(
+      error instanceof Error &&
+        [
+          'Task is unavailable.',
+          'Task is not a priority.',
+          'Choose Priority 1, 2, or 3.',
+          'Choose an assigned priority.',
+          'This task is already a priority.',
+          'Choose an empty priority slot.',
+          'Choose an occupied priority to replace.',
+        ].includes(error.message)
+        ? error.message
+        : 'Priority changed elsewhere. Refresh and try again.',
+    );
   }
   refresh();
-  return { success: 'Priority selected.' };
+  return { success: 'Priorities saved.' };
 }
 
 export async function setDayModeAction(
@@ -359,7 +660,7 @@ export async function createBlockAction(
     ? Array.from({ length: 7 }, (_, index) => (index === weekdayIndex(startDate) ? '1' : '0')).join(
         '',
       )
-    : nullable(form, 'weekdayMask');
+    : weekdays(form);
   const parsed = BlockSchema.safeParse({
     title: nullable(form, 'title'),
     category: nullable(form, 'category'),
@@ -375,58 +676,89 @@ export async function createBlockAction(
     allowOverlap: checked(form, 'allowOverlap'),
   });
   if (!parsed.success) return invalid(parsed.error);
-  if (
-    parsed.data.taskId &&
-    !(
-      await db
-        .select({ id: tasks.id })
-        .from(tasks)
-        .where(and(eq(tasks.id, parsed.data.taskId), eq(tasks.userId, userId)))
-        .limit(1)
-    )[0]
-  )
-    return fail('Task not found.');
-  if (
-    parsed.data.goalId &&
-    !(
-      await db
-        .select({ id: goals.id })
-        .from(goals)
-        .where(and(eq(goals.id, parsed.data.goalId), eq(goals.userId, userId)))
-        .limit(1)
-    )[0]
-  )
-    return fail('Goal not found.');
-  if (
-    parsed.data.projectId &&
-    !(
-      await db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(and(eq(projects.id, parsed.data.projectId), eq(projects.userId, userId)))
-        .limit(1)
-    )[0]
-  )
-    return fail('Project not found.');
-  const { allowOverlap, ...values } = parsed.data;
-  const existing = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
-  const conflict = existing.find(
-    (block) =>
-      block.status === 'active' &&
-      block.startDate <= (values.endDate ?? '9999-12-31') &&
-      (!block.endDate || block.endDate >= values.startDate) &&
-      [...values.weekdayMask].some(
-        (bit, index) => bit === '1' && block.weekdayMask[index] === '1',
-      ) &&
-      overlaps(block, values),
-  );
-  if (conflict && (conflict.isFixed || !allowOverlap))
-    return fail(
-      `Overlaps ${conflict.title}. Choose another time${conflict.isFixed ? '.' : ' or confirm a flexible overlap.'}`,
+  const result = await db.transaction(async (db) => {
+    await db.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`habitflow-schedule:${userId}`}, 0))`,
     );
-  await db.insert(timeBlocks).values({ userId, ...values });
-  refresh();
-  return { success: 'Time block added.' };
+    if (
+      parsed.data.taskId &&
+      !(
+        await db
+          .select({ id: tasks.id })
+          .from(tasks)
+          .where(and(eq(tasks.id, parsed.data.taskId), eq(tasks.userId, userId)))
+          .limit(1)
+      )[0]
+    )
+      return fail('Task not found.');
+    if (
+      parsed.data.goalId &&
+      !(
+        await db
+          .select({ id: goals.id })
+          .from(goals)
+          .where(and(eq(goals.id, parsed.data.goalId), eq(goals.userId, userId)))
+          .limit(1)
+      )[0]
+    )
+      return fail('Goal not found.');
+    if (
+      parsed.data.projectId &&
+      !(
+        await db
+          .select({ id: projects.id })
+          .from(projects)
+          .where(and(eq(projects.id, parsed.data.projectId), eq(projects.userId, userId)))
+          .limit(1)
+      )[0]
+    )
+      return fail('Project not found.');
+    const { allowOverlap, ...values } = parsed.data;
+    const [rules, revisions] = await Promise.all([
+      db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId)),
+      db.select().from(timeBlockRevisions).where(eq(timeBlockRevisions.userId, userId)),
+    ]);
+    const allExceptions = await db
+      .select()
+      .from(timeBlockExceptions)
+      .where(eq(timeBlockExceptions.userId, userId));
+    const candidate = { ...values, id: '__new__', status: 'active' };
+    const conflict = futureBoundaryDates(values.startDate, rules, revisions, allExceptions).flatMap(
+      (date) =>
+        occursOn(candidate, date)
+          ? expandBlocks(rules, allExceptions, date, date, revisions).filter(
+              (item) => item.occurrenceStatus !== 'skipped' && overlaps(item, candidate),
+            )
+          : [],
+    )[0];
+    if (conflict && (conflict.isFixed || values.isFixed || !allowOverlap))
+      return fail(
+        `Overlaps ${conflict.title}. Choose another time${conflict.isFixed ? '.' : ' or confirm a flexible overlap.'}`,
+      );
+    const [created] = await db
+      .insert(timeBlocks)
+      .values({ userId, ...values })
+      .returning({ id: timeBlocks.id });
+    await db.insert(timeBlockRevisions).values({
+      userId,
+      blockId: created.id,
+      effectiveDate: values.startDate,
+      title: values.title,
+      category: values.category,
+      localStartTime: values.localStartTime,
+      localEndTime: values.localEndTime,
+      weekdayMask: values.weekdayMask,
+      status: 'active',
+      endDate: values.endDate,
+      isFixed: values.isFixed,
+      taskId: values.taskId,
+      goalId: values.goalId,
+      projectId: values.projectId,
+    });
+    return { success: 'Time block added.' };
+  });
+  if (result.success) refresh();
+  return result;
 }
 
 export async function updateBlockStatusAction(
@@ -435,17 +767,73 @@ export async function updateBlockStatusAction(
 ): Promise<LifeActionState> {
   const userId = (await requireUser()).id;
   const parsed = z
-    .object({ id: z.uuid(), status: z.enum(['active', 'paused', 'archived']) })
-    .safeParse({ id: form.get('id'), status: form.get('status') });
+    .object({
+      id: z.uuid(),
+      status: z.enum(['active', 'paused', 'archived']),
+      effectiveDate: z.iso.date().optional(),
+    })
+    .safeParse({
+      id: form.get('id'),
+      status: form.get('status'),
+      effectiveDate: form.get('effectiveDate') || undefined,
+    });
   if (!parsed.success) return invalid(parsed.error);
-  const updated = await db
-    .update(timeBlocks)
-    .set({ status: parsed.data.status, updatedAt: new Date() })
-    .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, parsed.data.id)))
-    .returning({ id: timeBlocks.id });
-  if (!updated.length) return fail('Time block not found.');
-  refresh();
-  return { success: 'Time block updated.' };
+  const settings = await getUserSettings(userId);
+  const today = toDateString(getTodayInTimezone(settings.timezone));
+  const effectiveDate = parsed.data.effectiveDate ?? today;
+  if (effectiveDate < today) return fail('Changes must begin today or later.');
+  const result = await db.transaction(async (db) => {
+    await db.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`habitflow-schedule:${userId}`}, 0))`,
+    );
+    const [block] = await db
+      .select()
+      .from(timeBlocks)
+      .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, parsed.data.id)))
+      .limit(1);
+    if (!block) return fail('Time block not found.');
+    const revisions = await db
+      .select()
+      .from(timeBlockRevisions)
+      .where(and(eq(timeBlockRevisions.userId, userId), eq(timeBlockRevisions.blockId, block.id)));
+    const current = ruleOn(block, revisions, effectiveDate);
+    if (current.isFixed && !checked(form, 'confirmFixed'))
+      return fail('Confirm this fixed commitment change before saving.');
+    if (effectiveDate === today && occursOn(current, today, true)) {
+      const start = scheduledInstant(today, current.localStartTime, settings.timezone);
+      if (!start || start <= serverNow())
+        return fail('Today’s session has begun. Choose a later effective date.');
+    }
+    await db
+      .insert(timeBlockRevisions)
+      .values({
+        userId,
+        blockId: block.id,
+        effectiveDate,
+        title: current.title,
+        category: current.category,
+        localStartTime: current.localStartTime,
+        localEndTime: current.localEndTime,
+        weekdayMask: current.weekdayMask,
+        status: parsed.data.status,
+        endDate: current.endDate,
+        isFixed: current.isFixed,
+        taskId: current.taskId,
+        goalId: current.goalId,
+        projectId: current.projectId,
+      })
+      .onConflictDoUpdate({
+        target: [timeBlockRevisions.blockId, timeBlockRevisions.effectiveDate],
+        set: { status: parsed.data.status },
+      });
+    await db
+      .update(timeBlocks)
+      .set({ status: parsed.data.status, updatedAt: new Date() })
+      .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, block.id)));
+    return { success: 'Time block updated.' };
+  });
+  if (result.success) refresh();
+  return result;
 }
 
 export async function editBlockAction(
@@ -453,55 +841,200 @@ export async function editBlockAction(
   form: FormData,
 ): Promise<LifeActionState> {
   const userId = (await requireUser()).id;
-  const parsed = z
-    .object({
-      id: z.uuid(),
-      title: z.string().trim().min(1).max(160),
-      category: z.string().trim().min(1).max(80),
-      localStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-      localEndTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-      allowOverlap: z.boolean(),
-    })
-    .safeParse({
-      id: form.get('id'),
-      title: form.get('title'),
-      category: form.get('category'),
-      localStartTime: form.get('localStartTime'),
-      localEndTime: form.get('localEndTime'),
-      allowOverlap: checked(form, 'allowOverlap'),
-    });
-  if (!parsed.success) return invalid(parsed.error);
-  const { id, allowOverlap, ...values } = parsed.data;
-  if (values.localEndTime <= values.localStartTime)
-    return fail('End time must be after start time.');
+  const id = z.uuid().safeParse(form.get('id'));
+  if (!id.success) return fail('Time block not found.');
   const block = (
     await db
       .select()
       .from(timeBlocks)
-      .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, id)))
+      .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, id.data)))
       .limit(1)
   )[0];
   if (!block) return fail('Time block not found.');
-  const existing = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
-  const conflict = existing.find(
-    (item) =>
-      item.id !== id &&
-      item.status === 'active' &&
-      item.startDate <= (block.endDate ?? '9999-12-31') &&
-      (!item.endDate || item.endDate >= block.startDate) &&
-      [...block.weekdayMask].some((bit, index) => bit === '1' && item.weekdayMask[index] === '1') &&
-      overlaps(item, values),
-  );
-  if (conflict && (conflict.isFixed || !allowOverlap))
-    return fail(
-      `Overlaps ${conflict.title}. Choose another time${conflict.isFixed ? '.' : ' or confirm a flexible overlap.'}`,
+  const parsed = BlockSchema.safeParse({
+    title: nullable(form, 'title'),
+    category: nullable(form, 'category'),
+    localStartTime: nullable(form, 'localStartTime'),
+    localEndTime: nullable(form, 'localEndTime'),
+    weekdayMask: weekdays(form),
+    startDate: block.startDate,
+    endDate: nullable(form, 'endDate'),
+    isFixed: checked(form, 'isFixed'),
+    taskId: nullable(form, 'taskId'),
+    goalId: nullable(form, 'goalId'),
+    projectId: nullable(form, 'projectId'),
+    allowOverlap: checked(form, 'allowOverlap'),
+  });
+  if (!parsed.success) return invalid(parsed.error);
+  const { allowOverlap, startDate: _startDate, ...values } = parsed.data;
+  void _startDate;
+  const settings = await getUserSettings(userId);
+  const today = toDateString(getTodayInTimezone(settings.timezone));
+  const date = z.iso.date().safeParse(form.get('effectiveDate') || today);
+  if (!date.success) return fail('Choose a valid effective date.');
+  const effectiveDate = date.data;
+  if (effectiveDate < today) return fail('Changes must begin today or later.');
+  if (values.endDate && values.endDate < effectiveDate)
+    return fail('End date must be on or after the effective date.');
+  const result = await db.transaction(async (db) => {
+    await db.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`habitflow-schedule:${userId}`}, 0))`,
     );
-  await db
-    .update(timeBlocks)
-    .set({ ...values, updatedAt: new Date() })
-    .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, id)));
-  refresh();
-  return { success: 'Time block edited.' };
+    const [block] = await db
+      .select()
+      .from(timeBlocks)
+      .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, id.data)))
+      .limit(1);
+    if (!block) return fail('Time block not found.');
+    const rules = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
+    const revisions = await db
+      .select()
+      .from(timeBlockRevisions)
+      .where(eq(timeBlockRevisions.userId, userId));
+    const exceptions = await db
+      .select()
+      .from(timeBlockExceptions)
+      .where(eq(timeBlockExceptions.userId, userId));
+    const current = ruleOn(block, revisions, effectiveDate);
+    if (effectiveDate === today && occursOn(current, today, true)) {
+      const start = scheduledInstant(today, current.localStartTime, settings.timezone);
+      if (!start || start <= serverNow())
+        return fail('Today’s session has begun. Choose a later effective date.');
+    }
+    const proposed = { ...current, ...values };
+    if ((current.isFixed || proposed.isFixed) && !checked(form, 'confirmFixed'))
+      return fail('Confirm this fixed commitment change before saving.');
+    if (
+      values.taskId &&
+      !(
+        await db
+          .select({ id: tasks.id })
+          .from(tasks)
+          .where(and(eq(tasks.userId, userId), eq(tasks.id, values.taskId)))
+          .limit(1)
+      )[0]
+    )
+      return fail('Task not found.');
+    if (
+      values.goalId &&
+      !(
+        await db
+          .select({ id: goals.id })
+          .from(goals)
+          .where(and(eq(goals.userId, userId), eq(goals.id, values.goalId)))
+          .limit(1)
+      )[0]
+    )
+      return fail('Goal not found.');
+    if (
+      values.projectId &&
+      !(
+        await db
+          .select({ id: projects.id })
+          .from(projects)
+          .where(and(eq(projects.userId, userId), eq(projects.id, values.projectId)))
+          .limit(1)
+      )[0]
+    )
+      return fail('Project not found.');
+    const proposedRevisions = [
+      ...revisions.filter(
+        (item) => !(item.blockId === id.data && item.effectiveDate === effectiveDate),
+      ),
+      {
+        blockId: id.data,
+        effectiveDate,
+        title: proposed.title,
+        category: proposed.category,
+        localStartTime: proposed.localStartTime,
+        localEndTime: proposed.localEndTime,
+        weekdayMask: proposed.weekdayMask,
+        status: proposed.status,
+        endDate: proposed.endDate,
+        isFixed: proposed.isFixed,
+        taskId: proposed.taskId,
+        goalId: proposed.goalId,
+        projectId: proposed.projectId,
+      },
+    ];
+    const conflict = futureBoundaryDates(effectiveDate, rules, revisions, exceptions).flatMap(
+      (date) => {
+        const changed = expandBlocks(rules, exceptions, date, date, proposedRevisions);
+        const candidates = changed.filter(
+          (item) =>
+            item.id === id.data &&
+            item.originalDate >= effectiveDate &&
+            item.occurrenceStatus !== 'skipped',
+        );
+        const others = expandBlocks(rules, exceptions, date, date, revisions).filter(
+          (item) =>
+            item.occurrenceStatus !== 'skipped' &&
+            !candidates.some((own) => sameOccurrence(own, item)),
+        );
+        return [...others, ...candidates].filter((item) =>
+          candidates.some((own) => !sameOccurrence(own, item) && overlaps(own, item)),
+        );
+      },
+    )[0];
+    if (conflict && (conflict.isFixed || proposed.isFixed || !allowOverlap))
+      return fail(
+        `Overlaps ${conflict.title}. Choose another time${conflict.isFixed ? '.' : ' or confirm a flexible overlap.'}`,
+      );
+    if (form.get('preview') === 'yes')
+      return {
+        success: conflict
+          ? `Flexible overlap with ${conflict.title} is permitted. No change was saved.`
+          : 'No conflicts detected. No change was saved.',
+      };
+    await db
+      .insert(timeBlockRevisions)
+      .values({
+        userId,
+        blockId: id.data,
+        effectiveDate,
+        title: proposed.title,
+        category: proposed.category,
+        localStartTime: proposed.localStartTime,
+        localEndTime: proposed.localEndTime,
+        weekdayMask: proposed.weekdayMask,
+        status: proposed.status,
+        endDate: proposed.endDate,
+        isFixed: proposed.isFixed,
+        taskId: proposed.taskId,
+        goalId: proposed.goalId,
+        projectId: proposed.projectId,
+      })
+      .onConflictDoUpdate({
+        target: [timeBlockRevisions.blockId, timeBlockRevisions.effectiveDate],
+        set: {
+          title: proposed.title,
+          category: proposed.category,
+          localStartTime: proposed.localStartTime,
+          localEndTime: proposed.localEndTime,
+          weekdayMask: proposed.weekdayMask,
+          endDate: proposed.endDate,
+          isFixed: proposed.isFixed,
+          taskId: proposed.taskId,
+          goalId: proposed.goalId,
+          projectId: proposed.projectId,
+        },
+      });
+    await db
+      .update(timeBlocks)
+      .set({ ...values, updatedAt: new Date() })
+      .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, id.data)));
+    return { success: 'Time block edited.' };
+  });
+  if (result.success && form.get('preview') !== 'yes') refresh();
+  return result;
+}
+
+export async function previewBlockEditAction(
+  state: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  form.set('preview', 'yes');
+  return editBlockAction(state, form);
 }
 
 export async function updateOccurrenceAction(
@@ -520,70 +1053,134 @@ export async function updateOccurrenceAction(
     allowOverlap: checked(form, 'allowOverlap'),
   });
   if (!parsed.success) return invalid(parsed.error);
-  const block = (
-    await db
-      .select()
-      .from(timeBlocks)
-      .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, parsed.data.blockId)))
-      .limit(1)
-  )[0];
-  if (!block || !occursOn(block, parsed.data.occurrenceDate))
-    return fail('Scheduled occurrence not found.');
-  if (block.isFixed && ['skipped', 'rescheduled'].includes(parsed.data.status))
-    return fail(
-      'Fixed commitments cannot be skipped or moved here. Edit the series intentionally.',
+  const settings = await getUserSettings(userId);
+  const result = await db.transaction(async (db) => {
+    await db.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`habitflow-schedule:${userId}`}, 0))`,
     );
-  if (parsed.data.status === 'rescheduled' && !parsed.data.overrideDate)
-    return fail('Choose a new date.');
-  const previous = (
-    await db
+    const block = (
+      await db
+        .select()
+        .from(timeBlocks)
+        .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.id, parsed.data.blockId)))
+        .limit(1)
+    )[0];
+    if (!block) return fail('Scheduled occurrence not found.');
+    const revisions = await db
       .select()
-      .from(timeBlockExceptions)
-      .where(
-        and(
-          eq(timeBlockExceptions.userId, userId),
-          eq(timeBlockExceptions.blockId, block.id),
-          eq(timeBlockExceptions.occurrenceDate, parsed.data.occurrenceDate),
-        ),
-      )
-      .limit(1)
-  )[0];
-  const retained =
-    ['started', 'completed'].includes(parsed.data.status) && previous
-      ? {
-          ...parsed.data,
-          overrideDate: previous.overrideDate,
-          overrideStartTime: previous.overrideStartTime,
-          overrideEndTime: previous.overrideEndTime,
-        }
-      : parsed.data;
-  const startTime = retained.overrideStartTime ?? block.localStartTime;
-  const endTime = retained.overrideEndTime ?? block.localEndTime;
-  if (endTime <= startTime) return fail('End time must be after start time.');
-  if (parsed.data.status === 'rescheduled') {
-    const targetDate = retained.overrideDate ?? retained.occurrenceDate;
-    const { rules, exceptions } = await getBlocksForRange(userId, targetDate, targetDate);
-    const conflict = expandBlocks(rules, exceptions, targetDate, targetDate).find(
-      (item) =>
-        item.id !== block.id &&
-        overlaps(item, { localStartTime: startTime, localEndTime: endTime }),
-    );
-    if (conflict && (conflict.isFixed || !parsed.data.allowOverlap))
+      .from(timeBlockRevisions)
+      .where(and(eq(timeBlockRevisions.userId, userId), eq(timeBlockRevisions.blockId, block.id)));
+    const previous = (
+      await db
+        .select()
+        .from(timeBlockExceptions)
+        .where(
+          and(
+            eq(timeBlockExceptions.userId, userId),
+            eq(timeBlockExceptions.blockId, block.id),
+            eq(timeBlockExceptions.occurrenceDate, parsed.data.occurrenceDate),
+          ),
+        )
+        .limit(1)
+    )[0];
+    const rule = ruleOn(block, revisions, parsed.data.occurrenceDate);
+    if (
+      (!occursOn(rule, parsed.data.occurrenceDate, true) && !previous) ||
+      (rule.status !== 'active' &&
+        parsed.data.occurrenceDate >= toDateString(getTodayInTimezone(settings.timezone)))
+    )
+      return fail('Scheduled occurrence not found.');
+    if (rule.isFixed && ['skipped', 'rescheduled'].includes(parsed.data.status))
       return fail(
-        `Overlaps ${conflict.title}. Choose another time${conflict.isFixed ? '.' : ' or confirm a flexible overlap.'}`,
+        'Fixed commitments cannot be skipped or moved here. Edit the series intentionally.',
       );
-  }
-  const { allowOverlap: _allowOverlap, ...values } = retained;
-  void _allowOverlap;
-  await db
-    .insert(timeBlockExceptions)
-    .values({ userId, ...values })
-    .onConflictDoUpdate({
-      target: [timeBlockExceptions.blockId, timeBlockExceptions.occurrenceDate],
-      set: { ...values, updatedAt: new Date() },
-    });
-  refresh();
-  return { success: 'Occurrence updated.' };
+    if (parsed.data.status === 'rescheduled' && !parsed.data.overrideDate)
+      return fail('Choose a new date.');
+    if (
+      parsed.data.status === 'planned' &&
+      !['skipped', 'excused', 'rescheduled'].includes(previous?.status ?? '')
+    )
+      return fail('Only a skipped, excused, or moved session can be restored.');
+    if (
+      ['skipped', 'excused'].includes(previous?.status ?? '') &&
+      ['started', 'completed'].includes(parsed.data.status)
+    )
+      return fail('Restore this session before recording progress.');
+    if (previous?.status === 'completed' && parsed.data.status === 'skipped')
+      return fail('A completed session cannot be skipped.');
+    const retained =
+      ['started', 'completed'].includes(parsed.data.status) && previous
+        ? {
+            ...parsed.data,
+            overrideDate: previous.overrideDate,
+            overrideStartTime: previous.overrideStartTime,
+            overrideEndTime: previous.overrideEndTime,
+          }
+        : parsed.data;
+    const startTime = retained.overrideStartTime ?? rule.localStartTime;
+    const endTime = retained.overrideEndTime ?? rule.localEndTime;
+    if (endTime <= startTime) return fail('End time must be after start time.');
+    if (parsed.data.status === 'started' || parsed.data.status === 'completed') {
+      const error = statusTimeError(
+        parsed.data.status,
+        retained.overrideDate ?? parsed.data.occurrenceDate,
+        startTime,
+        endTime,
+        settings.timezone,
+        serverNow(),
+      );
+      if (error) return fail(error);
+    }
+    if (parsed.data.status === 'rescheduled' || parsed.data.status === 'planned') {
+      const targetDate = retained.overrideDate ?? retained.occurrenceDate;
+      const rules = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
+      const exceptions = await db
+        .select()
+        .from(timeBlockExceptions)
+        .where(eq(timeBlockExceptions.userId, userId));
+      const allRevisions = await db
+        .select()
+        .from(timeBlockRevisions)
+        .where(eq(timeBlockRevisions.userId, userId));
+      const conflict = expandBlocks(rules, exceptions, targetDate, targetDate, allRevisions).find(
+        (item) =>
+          !['skipped', 'excused'].includes(item.occurrenceStatus) &&
+          !sameOccurrence(item, { id: block.id, originalDate: parsed.data.occurrenceDate }) &&
+          overlaps(item, { localStartTime: startTime, localEndTime: endTime }),
+      );
+      if (conflict && (conflict.isFixed || !parsed.data.allowOverlap))
+        return fail(
+          `Overlaps ${conflict.title}. Choose another time${conflict.isFixed ? '.' : ' or confirm a flexible overlap.'}`,
+        );
+    }
+    const { allowOverlap: _allowOverlap, ...values } = retained;
+    void _allowOverlap;
+    if (parsed.data.status === 'planned' || parsed.data.status === 'skipped') {
+      values.overrideDate = null;
+      values.overrideStartTime = null;
+      values.overrideEndTime = null;
+    }
+    if (form.get('preview') === 'yes')
+      return { success: 'No conflicts detected. No change was saved.' };
+    await db
+      .insert(timeBlockExceptions)
+      .values({ userId, ...values })
+      .onConflictDoUpdate({
+        target: [timeBlockExceptions.blockId, timeBlockExceptions.occurrenceDate],
+        set: { ...values, timeOffId: null, updatedAt: new Date() },
+      });
+    return { success: 'Occurrence updated.' };
+  });
+  if (result.success && form.get('preview') !== 'yes') refresh();
+  return result;
+}
+
+export async function previewOccurrenceAction(
+  state: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  form.set('preview', 'yes');
+  return updateOccurrenceAction(state, form);
 }
 
 export async function saveSubjectAction(

@@ -19,6 +19,7 @@ export async function getUserSettings(userId: string) {
       timezone: 'UTC',
       weekStartsOn: 1,
       theme: 'system',
+      flexibleCapacityMinutes: null,
     }
   );
 }

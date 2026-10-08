@@ -9,6 +9,7 @@ import {
   subjects,
   tasks,
   timeBlockExceptions,
+  timeBlockRevisions,
   timeBlocks,
   weeklyReviews,
 } from '@/lib/db/schema';
@@ -63,7 +64,7 @@ export const getDayPlan = async (userId: string, date: string) =>
   )[0] ?? null;
 
 export async function getBlocksForRange(userId: string, start: string, end: string) {
-  const [rules, exceptions] = await Promise.all([
+  const [rules, exceptions, revisions] = await Promise.all([
     db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId)),
     db
       .select()
@@ -83,6 +84,7 @@ export async function getBlocksForRange(userId: string, start: string, end: stri
           ),
         ),
       ),
+    db.select().from(timeBlockRevisions).where(eq(timeBlockRevisions.userId, userId)),
   ]);
-  return { rules, exceptions };
+  return { rules, exceptions, revisions };
 }
