@@ -53,6 +53,7 @@ export async function getActiveHabitCompletionsThrough(userId: string, cutoff: s
     .select({
       date: habitEntries.date,
       startDate: habits.startDate,
+      endDate: habits.endDate,
       schedule: habits.schedule,
       archived: habits.archived,
     })

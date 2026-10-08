@@ -1,6 +1,6 @@
 import type { SelectHabit, SelectHabitEntry, CompletionStats } from '@/types';
 import { format } from 'date-fns';
-import { isScheduledWeekday } from './habit-month-progress';
+import { isFixedOccurrence, isScheduledWeekday } from './habit-month-progress';
 
 /**
  * Calculate overall completion rate for a set of habits and entries in a month.
@@ -28,14 +28,13 @@ export function calculateCompletionRate(
   const todayStr = formatDateStr(today);
 
   for (const habit of habits) {
+    if (habit.archived) continue;
     for (const day of daysInMonth) {
       const dayStr = formatDateStr(day);
       // Don't count future days
       if (dayStr > todayStr) continue;
       // Don't count days before habit started
-      if (habit.startDate > dayStr) continue;
-
-      if (!isScheduledDay(habit.schedule, day)) continue;
+      if (!isFixedOccurrence(habit, dayStr, day.getDay())) continue;
 
       totalPossible++;
       if (entrySet.has(`${habit.id}:${dayStr}`)) {

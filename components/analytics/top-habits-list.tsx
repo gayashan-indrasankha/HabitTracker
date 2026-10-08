@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Award } from 'lucide-react';
 import type { TopHabit } from '@/types';
 
 interface TopHabitsListProps {
@@ -8,12 +7,9 @@ interface TopHabitsListProps {
 
 export function TopHabitsList({ topHabits }: TopHabitsListProps) {
   return (
-    <Card>
+    <Card className="analytics-card">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
-          <Award className="h-4 w-4 text-amber-500" aria-hidden />
-          Top Habits
-        </CardTitle>
+        <CardTitle className="text-sm font-medium">Top fixed-schedule habits</CardTitle>
       </CardHeader>
       <CardContent>
         {topHabits.length === 0 ? (

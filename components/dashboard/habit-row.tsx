@@ -4,23 +4,28 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { CircleDot } from 'lucide-react';
 import { DayCell } from './day-cell';
 import { toggleEntryAction } from '@/lib/actions/entry-actions';
-import { habitMonthProgress, isGridApplicable, type CalendarDay } from '@/lib/analytics/habit-month-progress';
+import { habitMonthProgress, isGridApplicable, isFlexibleWeekly, weeklyQuotaAttainment, type CalendarDay } from '@/lib/analytics/habit-month-progress';
 import type { SelectHabit } from '@/types';
 
 interface HabitRowProps {
   habit: SelectHabit;
   days: CalendarDay[];
   today: string;
+  weekStartsOn: number;
   initialCompletedDates: string[];
 }
 
-export function HabitRow({ habit, days, today, initialCompletedDates }: HabitRowProps) {
+export function HabitRow({ habit, days, today, weekStartsOn, initialCompletedDates }: HabitRowProps) {
   const [completedDates, setCompletedDates] = useState(() => new Set(initialCompletedDates));
   const completedRef = useRef(completedDates);
   const pendingRef = useRef(false);
   const [pendingDate, setPendingDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const progress = useMemo(() => habitMonthProgress(habit, days, completedDates, today), [habit, days, completedDates, today]);
+  const flexible = isFlexibleWeekly(habit.schedule);
+  const displayedCutoff = today < days.at(-1)!.date ? today : days.at(-1)!.date;
+  const weekly = flexible ? weeklyQuotaAttainment(habit, displayedCutoff, completedDates, displayedCutoff, weekStartsOn) : null;
+  const monthCount = days.filter(day => completedDates.has(day.date)).length;
 
   const handleToggle = useCallback(async (date: string) => {
     if (pendingRef.current) return;
@@ -61,10 +66,9 @@ export function HabitRow({ habit, days, today, initialCompletedDates }: HabitRow
         </span>
         {error && <span role="alert" className="mt-1 block text-xs font-normal text-destructive">{error}</span>}
       </th>
-      <td className="w-20 min-w-20 border-b px-2 py-3 text-center font-semibold tabular-nums">{progress.goal}</td>
+      <td className="w-20 min-w-20 border-b px-2 py-3 text-center font-semibold tabular-nums">{flexible ? `${habit.schedule.split(':')[1]}/week` : progress.goal}</td>
       <td className="w-28 min-w-28 border-b px-2 py-3">
-        <div className="flex items-baseline justify-between gap-1 tabular-nums"><span className="font-semibold">{progress.completed} / {progress.goal}</span><span className="text-xs text-muted-foreground">{progress.percentage}%</span></div>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width] duration-200" style={{ width: `${progress.percentage}%` }} /></div>
+        {flexible ? <div className="text-xs tabular-nums"><strong>{weekly?.completed} / {weekly?.goal}</strong> this week<span className="block text-muted-foreground">{monthCount} logged this month</span></div> : <><div className="flex items-baseline justify-between gap-1 tabular-nums"><span className="font-semibold">{progress.completed} / {progress.goal}</span><span className="text-xs text-muted-foreground">{progress.percentage}%</span></div><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width] duration-200" style={{ width: `${progress.percentage}%` }} /></div></>}
       </td>
       {days.map((day) => {
         const isEligible = isGridApplicable(habit, day, days, completedDates);

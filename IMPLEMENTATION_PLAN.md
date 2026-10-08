@@ -169,3 +169,25 @@ Extend schedules to daily, selected weekdays, weekdays, weekends, and a flexible
 - [ ] Add category search/filter, drag ordering with keyboard fallback, and archived management controls.
 - [ ] Update grid applicability and all analytics to use the schedule semantics.
 - [ ] Run migration, typecheck, lint, tests, production build, and browser verification.
+
+## Life OS implementation (2026-10-08)
+
+The current mission supersedes the earlier stop-after-phase notes above. Baseline inspection found the earlier dashboard, landing, analytics, and tracker edits still uncommitted; they were preserved. Baseline typecheck, lint, 13 unit tests, and production build passed before this work. No production database or deployment was touched.
+
+### Delivered
+
+1. **Foundation:** fixed partial habit update clearing, exact-set transactional reordering with keyboard-accessible controls, server IANA timezone validation, optimistic entry revalidation, and habit form client validation. Fixed-schedule analytics share one eligibility rule. Flexible weekly quotas now use complete weeks on Today and stay outside calendar-month percentages. The activity streak is labeled as such.
+2. **Today and Week:** authenticated `/today` with selected priorities, day mode, schedule actions, applicable habits, and the existing daily note; `/week` with responsive day/overview views, recurring and one-off blocks, protected fixed commitments, one-date exceptions, overlap checks, and series detail/status editing. Mobile navigation reaches all primary routes.
+3. **Goals and setup:** goals, projects, tasks, five subject slots, milestones, and a selectable, idempotent personal template. Template values are examples until applied.
+4. **Review and backup:** weekly reflection, recorded metric entries, distinct adherence/output/outcome summaries, and explicit versioned JSON export. No import path is offered.
+
+### Data and verification
+
+Migrations `0003`–`0006` add domain tables, ownership constraints, unique daily priority slots, nullable template keys, and subject assessments. Existing auth, habit, entry, and note rows are retained. The embedded migration check uses a fresh PGlite instance and rejects cross-owner references. The standalone desktop server smoke uses a fresh temporary embedded database. Standard PostgreSQL migration and isolated Playwright flows still require a controlled local test database. See [SCHEDULING.md](SCHEDULING.md) for calculation policy and limits.
+
+### Remaining gaps
+
+- Recurrence weekday changes and all-future occurrence edits need a series split with historical rule versioning; current series editing covers title, category, and time. Habit schedule edits still recalculate old months under the latest schedule.
+- The template does not configure rolling two-training-days/one-rest-day alternation, monthly travel days, commute buffers, meal checks, or body-weight reminder notifications. These are left as editable planning choices.
+- The weekly review shows actual weight average and a prior-week comparison; a multi-week trend chart and richer category time accounting remain future work.
+- Real-browser end-to-end tests and standard PostgreSQL migration verification must run against an isolated test environment before deployment.

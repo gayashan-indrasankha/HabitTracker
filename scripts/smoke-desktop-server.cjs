@@ -1,5 +1,6 @@
 const { spawn } = require('node:child_process');
-const { mkdirSync } = require('node:fs');
+const { mkdtempSync, realpathSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { startEmbeddedDatabase, freeLoopbackPort } = require('../desktop/runtime.cjs');
@@ -20,8 +21,7 @@ async function waitForHealthy(origin, child) {
 
 async function main() {
   const packageRoot = process.env.HABITFLOW_SMOKE_ROOT ? path.resolve(process.env.HABITFLOW_SMOKE_ROOT) : path.resolve();
-  const dataRoot = path.resolve('.desktop-test');
-  mkdirSync(dataRoot, { recursive: true });
+  const dataRoot = mkdtempSync(path.join(tmpdir(), 'habitflow-smoke-'));
   const database = await startEmbeddedDatabase(path.join(dataRoot, 'server-smoke-db'), path.join(packageRoot, 'lib/db/migrations'));
   let child;
   try {
@@ -42,12 +42,21 @@ async function main() {
     if (!response.ok) throw new Error(`Registration failed: HTTP ${response.status}`);
     const cookies = response.headers.getSetCookie().map(value => value.split(';', 1)[0]).join('; ');
     if (!cookies) throw new Error('Registration returned no session cookie.');
-    const dashboard = await fetch(`${origin}/dashboard`, { headers: { Cookie: cookies }, redirect: 'manual' });
-    if (dashboard.status !== 200) throw new Error(`Authenticated dashboard failed: HTTP ${dashboard.status}`);
-    console.log('Embedded database, migrations, health, registration, and authenticated dashboard OK');
+    for (const route of ['/today', '/week', '/goals', '/review', '/dashboard', '/api/export']) {
+      const response = await fetch(`${origin}${route}`, { headers: { Cookie: cookies }, redirect: 'manual' });
+      if (response.status !== 200) throw new Error(`Authenticated ${route} failed: HTTP ${response.status}`);
+      if (route === '/api/export') {
+        const backup = await response.json();
+        if (backup.schemaVersion !== 1 || !Array.isArray(backup.habits) || 'account' in backup || 'session' in backup) throw new Error('Backup schema or privacy check failed');
+      }
+    }
+    console.log('Embedded database, migrations, health, registration, main routes, and export OK');
   } finally {
     if (child && child.exitCode === null) child.kill();
     await database.close();
+    const resolved = realpathSync(dataRoot);
+    if (path.dirname(resolved) !== realpathSync(tmpdir()) || !path.basename(resolved).startsWith('habitflow-smoke-')) throw new Error('Unsafe smoke cleanup path');
+    rmSync(resolved, { recursive: true, force: true });
   }
 }
 

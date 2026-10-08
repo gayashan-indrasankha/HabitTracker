@@ -31,6 +31,7 @@ export async function upsertNoteAction(
   await upsertNote(userId, parsed.data.date, parsed.data.content);
   revalidatePath('/notes');
   revalidatePath('/dashboard');
+  revalidatePath('/today');
   return { success: true };
 }
 

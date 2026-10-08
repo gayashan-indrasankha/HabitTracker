@@ -28,6 +28,7 @@ const TIMEZONES = [
   'Europe/Paris',
   'Europe/Berlin',
   'Asia/Kolkata',
+  'Asia/Colombo',
   'Asia/Dubai',
   'Asia/Singapore',
   'Asia/Tokyo',

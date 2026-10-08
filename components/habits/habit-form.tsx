@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { startTransition, useActionState, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { HabitCreateSchema, type HabitCreateInput } from '@/lib/validations/habit';
@@ -34,8 +34,22 @@ const SCHEDULE_OPTIONS = [
 ];
 
 const ICON_OPTIONS = [
-  '💪', '🏃', '📚', '💧', '🧘', '🥗', '😴', '✍️',
-  '🎵', '🧹', '💊', '🌿', '☀️', '🎯', '🧠', '❤️',
+  '💪',
+  '🏃',
+  '📚',
+  '💧',
+  '🧘',
+  '🥗',
+  '😴',
+  '✍️',
+  '🎵',
+  '🧹',
+  '💊',
+  '🌿',
+  '☀️',
+  '🎯',
+  '🧠',
+  '❤️',
 ];
 
 interface HabitFormProps {
@@ -54,6 +68,7 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
     formState: { errors },
     setValue,
     control,
+    handleSubmit,
   } = useForm<HabitCreateInput>({
     resolver: zodResolver(HabitCreateSchema),
     defaultValues: {
@@ -68,13 +83,27 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
     },
   });
 
-  const selectedSchedule = useWatch({ control, name: 'schedule' }) ?? defaultValues?.schedule ?? 'daily';
+  const selectedSchedule =
+    useWatch({ control, name: 'schedule' }) ?? defaultValues?.schedule ?? 'daily';
   const selectedIcon = useWatch({ control, name: 'icon' }) ?? defaultValues?.icon ?? '';
+  const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <Card>
       <CardContent className="pt-6">
-        <form action={formAction} className="space-y-5">
+        <form
+          ref={formRef}
+          action={formAction}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit(() =>
+              startTransition(() => {
+                if (formRef.current) formAction(new FormData(formRef.current));
+              }),
+            )(event);
+          }}
+          className="space-y-5"
+        >
           {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="name">
@@ -102,6 +131,11 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
               rows={2}
               {...register('description')}
             />
+            {(errors.description || state.fieldErrors?.description) && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.description?.message ?? state.fieldErrors?.description?.[0]}
+              </p>
+            )}
           </div>
 
           {/* Icon picker */}
@@ -142,11 +176,12 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="category">Category</Label>
-              <Input
-                id="category"
-                placeholder="e.g. Health, Learning"
-                {...register('category')}
-              />
+              <Input id="category" placeholder="e.g. Health, Learning" {...register('category')} />
+              {(errors.category || state.fieldErrors?.category) && (
+                <p role="alert" className="text-sm text-destructive">
+                  {errors.category?.message ?? state.fieldErrors?.category?.[0]}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="monthlyTarget">
@@ -158,14 +193,11 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
                 min={1}
                 max={31}
                 {...register('monthlyTarget', { valueAsNumber: true })}
-                aria-describedby={
-                  errors.monthlyTarget ? 'target-error' : undefined
-                }
+                aria-describedby={errors.monthlyTarget ? 'target-error' : undefined}
               />
               {(errors.monthlyTarget || state.fieldErrors?.monthlyTarget) && (
                 <p id="target-error" className="text-sm text-destructive">
-                  {errors.monthlyTarget?.message ??
-                    state.fieldErrors?.monthlyTarget?.[0]}
+                  {errors.monthlyTarget?.message ?? state.fieldErrors?.monthlyTarget?.[0]}
                 </p>
               )}
             </div>
@@ -189,10 +221,32 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
                 ))}
               </SelectContent>
             </Select>
-            {selectedSchedule.startsWith('custom:') && <div className="flex flex-wrap gap-2 pt-2" role="group" aria-label="Scheduled weekdays">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label, index) => <button key={label} type="button" aria-pressed={selectedSchedule[7 + index] === '1'} className={`rounded-md border px-3 py-1.5 text-sm ${selectedSchedule[7 + index] === '1' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'}`} onClick={() => { const bits = selectedSchedule.slice(7).split(''); bits[index] = bits[index] === '1' ? '0' : '1'; setValue('schedule', `custom:${bits.join('')}`, { shouldValidate: true }); }}>{label}</button>)}
-            </div>}
-            {errors.schedule && <p className="text-sm text-destructive">{errors.schedule.message}</p>}
+            {selectedSchedule.startsWith('custom:') && (
+              <div
+                className="flex flex-wrap gap-2 pt-2"
+                role="group"
+                aria-label="Scheduled weekdays"
+              >
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label, index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={selectedSchedule[7 + index] === '1'}
+                    className={`rounded-md border px-3 py-1.5 text-sm ${selectedSchedule[7 + index] === '1' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'}`}
+                    onClick={() => {
+                      const bits = selectedSchedule.slice(7).split('');
+                      bits[index] = bits[index] === '1' ? '0' : '1';
+                      setValue('schedule', `custom:${bits.join('')}`, { shouldValidate: true });
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {errors.schedule && (
+              <p className="text-sm text-destructive">{errors.schedule.message}</p>
+            )}
             <input type="hidden" {...register('schedule')} value={selectedSchedule} />
           </div>
 
@@ -203,9 +257,7 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
               id="startDate"
               type="date"
               {...register('startDate')}
-              aria-describedby={
-                errors.startDate ? 'start-date-error' : undefined
-              }
+              aria-describedby={errors.startDate ? 'start-date-error' : undefined}
             />
             {errors.startDate && (
               <p id="start-date-error" className="text-sm text-destructive">
@@ -217,7 +269,11 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
           <div className="space-y-1.5">
             <Label htmlFor="endDate">End Date (optional)</Label>
             <Input id="endDate" type="date" {...register('endDate')} />
-            {(errors.endDate || state.fieldErrors?.endDate) && <p className="text-sm text-destructive">{errors.endDate?.message ?? state.fieldErrors?.endDate?.[0]}</p>}
+            {(errors.endDate || state.fieldErrors?.endDate) && (
+              <p className="text-sm text-destructive">
+                {errors.endDate?.message ?? state.fieldErrors?.endDate?.[0]}
+              </p>
+            )}
           </div>
 
           {/* Server error */}

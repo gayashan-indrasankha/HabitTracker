@@ -1,5 +1,5 @@
 import type { SelectHabit, SelectHabitEntry, WeeklySummary } from '@/types';
-import { isScheduledDay } from './completion';
+import { isFixedOccurrence } from './habit-month-progress';
 import { endOfWeek, eachWeekOfInterval, eachDayOfInterval, format } from 'date-fns';
 
 /**
@@ -41,8 +41,7 @@ export function calculateWeeklySummary(
       for (const day of daysInWeek) {
         const dayStr = format(day, 'yyyy-MM-dd');
         if (dayStr > todayStr) continue;
-        if (habit.startDate > dayStr) continue;
-        if (!isScheduledDay(habit.schedule, day)) continue;
+        if (habit.archived || !isFixedOccurrence(habit, dayStr, day.getDay())) continue;
         total++;
         if (entrySet.has(`${habit.id}:${dayStr}`)) completed++;
       }

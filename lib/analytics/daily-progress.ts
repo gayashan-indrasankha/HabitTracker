@@ -1,5 +1,5 @@
 import type { SelectHabit, SelectHabitEntry, DailyProgress } from '@/types';
-import { isScheduledDay } from './completion';
+import { isFixedOccurrence } from './habit-month-progress';
 import { format } from 'date-fns';
 
 /**
@@ -24,8 +24,7 @@ export function calculateDailyProgress(
 
     if (dayStr <= todayStr) {
       for (const habit of habits) {
-        if (habit.startDate > dayStr) continue;
-        if (!isScheduledDay(habit.schedule, day)) continue;
+        if (habit.archived || !isFixedOccurrence(habit, dayStr, day.getDay())) continue;
         total++;
         if (entrySet.has(`${habit.id}:${dayStr}`)) count++;
       }

@@ -20,7 +20,7 @@ Better Auth uses the canonical URL as its sole trusted origin. Each Preview depl
 ## Database and migrations
 
 1. Create and review a Neon project/branch and its connection details outside this repository. Keep Preview and Production branches distinct. Back up or snapshot the production branch before schema changes.
-2. Review every SQL file in `lib/db/migrations/` and the generated Drizzle journal. Migration `0001` adds nullable `habits.end_date`; migration `0002` adds auth lookup indexes. Both preserve existing rows.
+2. Review every SQL file in `lib/db/migrations/` and the generated Drizzle journal. Migration `0001` adds nullable `habits.end_date`; `0002` adds auth lookup indexes; `0003` adds Life OS tables and composite owner constraints; `0004` adds unique daily priority slots; `0005` adds nullable habit template keys; `0006` adds subject assessments. These preserve existing rows. Before `0003`, check for any historical `habit_entries.user_id` that differs from its habit owner; the composite constraint will reject such data rather than silently changing it.
 3. From a controlled environment with a TLS migration URL, run `npm ci`, `npm run db:check` (using a local env file for this check), then `npm run db:migrate`. Do this **once per target database**, before promoting the matching application build. Never run `db:push` against production. Do not run migrations automatically during every Vercel build or serverless startup.
 4. Confirm the migration result with a read-only schema check and `GET /api/health` after deployment. This health endpoint checks database reachability and returns only `ok` or `unavailable`; do not expose connection details.
 

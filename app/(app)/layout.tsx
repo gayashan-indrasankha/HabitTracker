@@ -1,6 +1,6 @@
 import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
-import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AppSidebar, MobileNav } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 
 export default async function AppLayout({
@@ -14,9 +14,10 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar user={user} />
-      <div className="flex flex-1 flex-col lg:pl-64">
+      <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
         <AppHeader user={user} settings={settings} />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+        <MobileNav />
+        <main className="min-w-0 flex-1 p-4 md:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

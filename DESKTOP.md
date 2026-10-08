@@ -18,3 +18,5 @@ On Windows with Node.js installed:
 The build creates a Next.js standalone server and packages Electron, PGlite, migrations, and static assets into a single portable `.exe`. The generated output is ignored by Git. The executable is currently unsigned; Windows may show a publisher warning when opening an unsigned binary. A release distributed to others should be code signed.
 
 The web deployment and its Neon database remain separately configured in [DEPLOYMENT.md](DEPLOYMENT.md).
+
+For a noninteractive desktop runtime check after `npm run build`, run `npm run desktop:smoke`. It starts a fresh temporary PGlite database, applies all checked-in migrations, registers a test account, and requests Today, Week, Goals, Review, the old Dashboard, and JSON export through the standalone server. It does not open an Electron window or touch the usual desktop application data directory.

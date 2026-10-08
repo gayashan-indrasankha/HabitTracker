@@ -15,6 +15,7 @@ export interface SelectHabit {
   category: string | null;
   monthlyTarget: number;
   schedule: string;
+  templateKey: string | null;
   startDate: string;
   endDate: string | null;
   archived: boolean;

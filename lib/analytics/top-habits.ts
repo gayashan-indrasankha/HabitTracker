@@ -1,5 +1,5 @@
 import type { SelectHabit, SelectHabitEntry, TopHabit } from '@/types';
-import { isScheduledDay } from './completion';
+import { isFixedOccurrence } from './habit-month-progress';
 import { format } from 'date-fns';
 
 /**
@@ -26,8 +26,7 @@ export function calculateTopHabits(
       for (const day of daysInMonth) {
         const dayStr = format(day, 'yyyy-MM-dd');
         if (dayStr > todayStr) continue;
-        if (habit.startDate > dayStr) continue;
-        if (!isScheduledDay(habit.schedule, day)) continue;
+        if (habit.archived || !isFixedOccurrence(habit, dayStr, day.getDay())) continue;
         total++;
         if (entrySet.has(`${habit.id}:${dayStr}`)) completed++;
       }

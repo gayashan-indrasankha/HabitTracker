@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const HabitCreateSchema = z.object({
+const HabitFieldsSchema = z.object({
   name: z
     .string()
     .min(1, 'Name is required')
@@ -23,11 +23,13 @@ export const HabitCreateSchema = z.object({
   ),
   startDate: z.iso.date(),
   endDate: z.union([z.iso.date(), z.literal('')]).optional(),
-}).refine((value) => !value.endDate || value.endDate >= value.startDate, {
+});
+
+export const HabitCreateSchema = HabitFieldsSchema.refine((value) => !value.endDate || value.endDate >= value.startDate, {
   message: 'End date must be on or after the start date', path: ['endDate'],
 });
 
-export const HabitUpdateSchema = HabitCreateSchema;
+export const HabitUpdateSchema = HabitFieldsSchema.partial();
 
 export type HabitCreateInput = z.infer<typeof HabitCreateSchema>;
 export type HabitUpdateInput = z.infer<typeof HabitUpdateSchema>;

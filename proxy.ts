@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth/server';
 
 // Routes that require authentication
-const PROTECTED_PREFIXES = ['/dashboard', '/habits', '/notes', '/settings'];
+const PROTECTED_PREFIXES = ['/today', '/week', '/goals', '/review', '/dashboard', '/habits', '/notes', '/settings'];
 
 // Routes that should redirect authenticated users away (sign-in, sign-up)
 const AUTH_ROUTES = ['/login', '/register', '/sign-in', '/sign-up'];
@@ -35,7 +35,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthRoute && session?.user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/today', request.url));
   }
 
   return NextResponse.next();

@@ -4,7 +4,7 @@ For Vercel and Neon production preparation, environment settings, migrations, an
 
 For the double-click Windows application, see [DESKTOP.md](DESKTOP.md).
 
-HabitFlow is a Next.js 16 habit tracker. This repository currently includes foundation work and pre-existing feature code. See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for phases and known gaps.
+HabitFlow is a Next.js 16 personal planning app built on the existing habit tracker. Today connects three selected tasks, time blocks, applicable habits, and a private daily note. Week, Goals, and Review provide a lightweight planning loop. The original monthly tracker remains at `/dashboard?month=YYYY-MM`.
 
 ## Requirements
 
@@ -20,11 +20,23 @@ HabitFlow is a Next.js 16 habit tracker. This repository currently includes foun
 4. Check connectivity: `npm run db:check`
 5. Start Next.js: `npm run dev` and open <http://localhost:3000>.
 
-Run `npm run db:migrate` after starting PostgreSQL to create the initial tables. The initial migration includes the Better Auth tables and existing domain tables. Additional domain integrity rules remain future work. `db:push` is available for local experimentation only and must not replace reviewed migrations in deployment.
+Run `npm run db:migrate` on the intended **local** database after starting PostgreSQL. Migrations `0003`–`0006` add Life OS tables, ownership constraints, daily priority uniqueness, nullable template keys, and subject assessments without removing existing rows. Review the target and back up its data before applying migrations. `db:push` is for local experimentation only.
 
 ## Authentication
 
-Visit `/register` to create an account or `/login` to return. Better Auth stores password hashes and persistent sessions in PostgreSQL. The app resolves identity from the server session before reading user-owned data; protected routes redirect to `/login` when the session is absent. The older `/sign-in` and `/sign-up` links redirect to the new pages.
+Visit `/register` to create an account or `/login` to return. Successful authentication opens `/today`. Better Auth stores password hashes and persistent sessions in PostgreSQL. The app resolves identity from the server session before reading user-owned data; protected routes redirect to `/login` when the session is absent. The older `/sign-in` and `/sign-up` links redirect to the new pages.
+
+## Daily workflow
+
+- `/today`: choose up to three tasks, change day mode, run or reschedule time blocks, record habits, and write an evening note.
+- `/week`: inspect Monday–Sunday blocks, add recurring or one-off blocks, edit times, and override a single occurrence. Fixed commitments resist casual skipping and moving.
+- `/goals`: create goals, projects, tasks, and five university subject slots. Grades are entered outcomes, not inferred from habit checks.
+- `/review`: compare fixed-habit adherence, finished tasks, completed blocks, and actual measurements; save a private weekly reflection.
+- `/dashboard`: the historical month tracker. Flexible `weekly:N` habits display complete-week quota attainment and monthly raw checks, outside fixed-day percentages. See [SCHEDULING.md](SCHEDULING.md).
+- `/settings/life-os`: preview and selectively apply an optional personal template. Applying it again preserves records with the same template keys. Nothing is seeded at registration.
+- `/settings`: set timezone, week start, and theme; download an explicit versioned JSON backup. The backup includes private notes and reviews and excludes auth credentials. There is no import/restore flow.
+
+The web PostgreSQL and desktop PGlite databases remain separate. No automatic synchronization is provided.
 
 ## Development commands
 
@@ -36,11 +48,13 @@ Visit `/register` to create an account or `/login` to return. Better Auth stores
 | `npm run format:check` | Check formatting                                  |
 | `npm run format`       | Format source files                               |
 | `npm test`             | Run Vitest unit tests                             |
-| `npm run test:e2e`     | Run Playwright tests when e2e cases are added     |
+| `npm run test:e2e`     | Run Playwright flows against an isolated test database with a browser installed |
 | `npm run build`        | Create a production build                         |
 | `npm run db:check`     | Test the PostgreSQL connection using `.env.local` |
 | `npm run db:generate`  | Generate a Drizzle migration from the schema      |
 | `npm run db:migrate`   | Apply reviewed migrations                         |
+| `node scripts/check-embedded-migrations.mjs` | Check migrations and owner constraints in fresh PGlite |
+| `npm run desktop:smoke` | Smoke test the built standalone server with a fresh embedded database |
 
 On Windows PowerShell systems that block `npm.ps1`, use `npm.cmd` in place of `npm`.
 

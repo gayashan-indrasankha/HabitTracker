@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/auth/session';
 import { getAllHabitsByUser } from '@/lib/dal/habits';
 import { HabitCard } from '@/components/habits/habit-card';
+import { HabitOrder } from '@/components/habits/habit-order';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, Archive } from 'lucide-react';
@@ -16,9 +17,7 @@ export default async function HabitsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Habits</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your habit tracking list
-          </p>
+          <p className="text-sm text-muted-foreground">Manage your habit tracking list</p>
         </div>
         <Button asChild>
           <Link href="/habits/new">
@@ -43,11 +42,7 @@ export default async function HabitsPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {active.map((habit) => (
-            <HabitCard key={habit.id} habit={habit} />
-          ))}
-        </div>
+        <HabitOrder habits={active} />
       )}
 
       {/* Archived habits */}
@@ -59,7 +54,7 @@ export default async function HabitsPage() {
               Archived ({archived.length})
             </h2>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 opacity-60">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {archived.map((habit) => (
               <HabitCard key={habit.id} habit={habit} isArchived />
             ))}

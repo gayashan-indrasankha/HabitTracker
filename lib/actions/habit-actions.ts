@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth/session';
 import { HabitCreateSchema, HabitUpdateSchema } from '@/lib/validations/habit';
 import {
@@ -10,6 +11,7 @@ import {
   archiveHabit,
   unarchiveHabit,
   reorderHabits,
+  getHabitByIdAndUser,
 } from '@/lib/dal/habits';
 
 export type HabitActionState = {
@@ -76,16 +78,16 @@ export async function updateHabitAction(
   }
 
   const raw = {
-    name: formData.get('name') || undefined,
-    description: formData.get('description') || undefined,
-    icon: formData.get('icon') || undefined,
-    category: formData.get('category') || undefined,
+    name: formData.has('name') ? formData.get('name') : undefined,
+    description: formData.has('description') ? formData.get('description') : undefined,
+    icon: formData.has('icon') ? formData.get('icon') : undefined,
+    category: formData.has('category') ? formData.get('category') : undefined,
     monthlyTarget: formData.get('monthlyTarget')
       ? Number(formData.get('monthlyTarget'))
       : undefined,
     schedule: formData.get('schedule') || undefined,
     startDate: formData.get('startDate') || undefined,
-    endDate: formData.get('endDate') || undefined,
+    endDate: formData.has('endDate') ? formData.get('endDate') : undefined,
   };
 
   const parsed = HabitUpdateSchema.safeParse(raw);
@@ -97,6 +99,12 @@ export async function updateHabitAction(
     return { fieldErrors };
   }
 
+  const existing = await getHabitByIdAndUser(habitId, userId);
+  if (!existing) return { error: 'Habit not found' };
+  const nextStart = parsed.data.startDate ?? existing.startDate;
+  const nextEnd = parsed.data.endDate === undefined ? existing.endDate : parsed.data.endDate;
+  if (nextEnd && nextEnd < nextStart)
+    return { fieldErrors: { endDate: ['End date must be on or after the start date'] } };
   const updated = await updateHabit(habitId, userId, parsed.data);
   if (!updated) return { error: 'Habit not found' };
 
@@ -136,9 +144,7 @@ export async function unarchiveHabitAction(habitId: string): Promise<HabitAction
   return { success: true };
 }
 
-export async function reorderHabitsAction(
-  orderedIds: string[],
-): Promise<HabitActionState> {
+export async function reorderHabitsAction(orderedIds: string[]): Promise<HabitActionState> {
   let userId: string;
   try {
     userId = await requireAuth();
@@ -146,7 +152,13 @@ export async function reorderHabitsAction(
     return { error: 'Unauthorized' };
   }
 
-  await reorderHabits(userId, orderedIds);
+  if (!z.array(z.uuid()).max(500).safeParse(orderedIds).success)
+    return { error: 'Invalid habit order.' };
+  try {
+    await reorderHabits(userId, orderedIds);
+  } catch {
+    return { error: 'Could not save the habit order. Refresh and try again.' };
+  }
   revalidatePath('/habits');
   revalidatePath('/dashboard');
   return { success: true };

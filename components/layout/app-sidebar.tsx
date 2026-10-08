@@ -3,20 +3,34 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Activity,
   LayoutDashboard,
   ListChecks,
   NotebookPen,
   Settings,
+  CalendarDays,
+  Target,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Today', href: '/today', icon: LayoutDashboard },
+  { name: 'Week', href: '/week', icon: CalendarDays },
   { name: 'Habits', href: '/habits', icon: ListChecks },
+  { name: 'Goals & Projects', href: '/goals', icon: Target },
+  { name: 'Review & Insights', href: '/review', icon: ClipboardCheck },
+  { name: 'Month history', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Notes', href: '/notes', icon: NotebookPen },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
+
+export function MobileNav() {
+  const pathname = usePathname();
+  return <nav aria-label="Mobile navigation" className="sticky top-16 z-30 flex gap-1 overflow-x-auto border-b bg-card p-2 lg:hidden">
+    {navigation.map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined}
+      className={cn('flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary', pathname === item.href ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}><item.icon className="h-4 w-4" aria-hidden="true"/>{item.name}</Link>)}
+  </nav>;
+}
 
 interface AppSidebarProps {
   user: { name?: string | null; email: string; image?: string | null };
@@ -28,9 +42,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r bg-card lg:flex">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <Activity className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold tracking-tight">HabitFlow</span>
+      <div className="flex h-16 items-center gap-2.5 border-b px-6">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-black italic text-primary-foreground">HF</span>
+        <span className="text-base font-black uppercase tracking-[.12em]">Habit<span className="text-primary">Flow</span></span>
       </div>
 
       {/* Nav */}

@@ -3,11 +3,10 @@ import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
 import { getActiveHabitsByUser } from '@/lib/dal/habits';
 import {
-  getEntriesByUserAndMonth,
+  getEntriesByUserAndDateRange,
   getActiveHabitCompletionsThrough,
 } from '@/lib/dal/habit-entries';
 import { MonthNavigator } from '@/components/layout/month-navigator';
-import { ProgressSummary } from '@/components/dashboard/progress-summary';
 import { HabitGrid } from '@/components/dashboard/habit-grid';
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
 import { GridSkeleton } from '@/components/shared/loading-skeleton';
@@ -21,7 +20,9 @@ import {
 } from '@/lib/utils/date';
 import { calculateCompletionRate } from '@/lib/analytics/completion';
 import { calculateStreaks } from '@/lib/analytics/streak';
+import { getNoteByUserAndDate } from '@/lib/dal/notes';
 import { format } from 'date-fns';
+import { weekStart } from '@/lib/analytics/habit-month-progress';
 
 interface DashboardPageProps {
   searchParams: Promise<{ month?: string }>;
@@ -45,12 +46,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }));
 
   // Fetch habits + month entries in parallel
-  const [habits, entries] = await Promise.all([
+  const todayStr = toDateString(today);
+  const expandedStart = weekStart(calendarDays[0].date, settings.weekStartsOn);
+  const lastWeekStart = weekStart(calendarDays.at(-1)!.date, settings.weekStartsOn);
+  const [wy, wm, wd] = lastWeekStart.split('-').map(Number);
+  const expandedEnd = new Date(Date.UTC(wy, wm - 1, wd + 6)).toISOString().slice(0, 10);
+  const [habits, entries, todayNote] = await Promise.all([
     getActiveHabitsByUser(userId),
-    getEntriesByUserAndMonth(userId, year, month),
+    getEntriesByUserAndDateRange(userId, expandedStart, expandedEnd),
+    getNoteByUserAndDate(userId, todayStr),
   ]);
 
-  const todayStr = toDateString(today);
   const monthEnd = calendarDays.at(-1)?.date ?? todayStr;
   const streakCutoff = monthEnd < todayStr ? monthEnd : todayStr;
   const streakEntries = await getActiveHabitCompletionsThrough(userId, streakCutoff);
@@ -60,12 +66,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div className="space-y-6">
-      {/* Header row */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[.15em] text-primary">Build better, every day</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Habit tracker</h1>
           <p className="text-sm text-muted-foreground">
-            Track your habits for the month
+            Your monthly progress at a glance.
           </p>
         </div>
         <Suspense fallback={null}>
@@ -76,15 +82,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </Suspense>
       </div>
 
-      {/* Progress summary cards */}
-      <ProgressSummary
-        stats={stats}
-        currentStreak={streaks.current}
-        bestStreak={streaks.best}
-        habitCount={habits.length}
-        streakCutoff={streakCutoff}
-      />
-
       <div className="space-y-6">
         <Suspense fallback={<GridSkeleton />}>
           <HabitGrid
@@ -92,6 +89,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             entries={entries}
             days={calendarDays}
             today={toDateString(today)}
+            weekStartsOn={settings.weekStartsOn}
           />
         </Suspense>
 
@@ -109,6 +107,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             weekStartsOn={
               settings.weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6
             }
+            currentStreak={streaks.current}
+            bestStreak={streaks.best}
+            streakCutoff={streakCutoff}
+            note={todayNote?.content ?? ''}
           />
         </Suspense>
       </div>

@@ -1,4 +1,4 @@
-import { TrendingUp, Flame, Trophy, Activity } from 'lucide-react';
+import { Flame, Trophy, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { CompletionStats } from '@/types';
 
@@ -17,62 +17,22 @@ export function ProgressSummary({
   habitCount,
   streakCutoff,
 }: ProgressSummaryProps) {
-  const cards = [
-    {
-      icon: TrendingUp,
-      label: 'Overall Progress',
-      value: `${stats.rate}%`,
-      sub: `${stats.completed} of ${stats.total}`,
-      color: 'text-primary',
-      bg: 'bg-primary/10',
-    },
-    {
-      icon: Flame,
-      label: 'Current Streak',
-      value: `${currentStreak}`,
-      sub: `${currentStreak === 1 ? 'day' : 'days'} through ${streakCutoff}`,
-      color: 'text-orange-500',
-      bg: 'bg-orange-500/10',
-    },
-    {
-      icon: Trophy,
-      label: 'Best Streak',
-      value: `${bestStreak}`,
-      sub: `${bestStreak === 1 ? 'day' : 'days'} through ${streakCutoff}`,
-      color: 'text-amber-500',
-      bg: 'bg-amber-500/10',
-    },
-    {
-      icon: Activity,
-      label: 'Active Habits',
-      value: `${habitCount}`,
-      sub: habitCount === 1 ? 'habit' : 'habits',
-      color: 'text-blue-500',
-      bg: 'bg-blue-500/10',
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.label} className="shadow-sm">
-          <CardContent className="flex items-start gap-3 p-4">
-            <div className={`rounded-lg p-2 ${card.bg}`} aria-hidden>
-              <card.icon className={`h-4 w-4 ${card.color}`} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">{card.label}</p>
-              <p className="text-xl font-bold leading-tight">{card.value}</p>
-              <p className="text-xs text-muted-foreground">{card.sub}</p>
-              {card.label === 'Overall Progress' && (
-                <div role="progressbar" aria-label="Overall Progress" aria-valuenow={stats.rate} aria-valuemin={0} aria-valuemax={100} className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${stats.rate}%` }} />
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <Card className="analytics-card h-full">
+      <div className="analytics-band text-center text-xs font-extrabold uppercase tracking-wide">Fixed-schedule adherence</div>
+      <CardContent className="p-5 text-center">
+        <p className="text-4xl font-extrabold tracking-tight text-primary">{stats.total ? `${stats.rate}%` : '—'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{stats.total ? `${stats.completed} of ${stats.total} fixed scheduled occurrences completed` : 'No eligible fixed occurrences'}</p>
+        <div role="progressbar" aria-label="Fixed-schedule adherence" aria-valuenow={stats.rate} aria-valuemin={0} aria-valuemax={100} className="mt-4 h-2 overflow-hidden rounded-full bg-[#dce5fa] dark:bg-muted">
+          <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${stats.rate}%` }} />
+        </div>
+        <div className="mt-5 grid grid-cols-3 gap-2 border-t pt-4 text-left">
+          <div><Flame className="mb-1 h-4 w-4 text-primary" aria-hidden="true" /><strong className="block text-sm">{currentStreak}</strong><span className="text-[10px] text-muted-foreground">Current activity streak</span></div>
+          <div><Trophy className="mb-1 h-4 w-4 text-primary" aria-hidden="true" /><strong className="block text-sm">{bestStreak}</strong><span className="text-[10px] text-muted-foreground">Best activity streak</span></div>
+          <div><Activity className="mb-1 h-4 w-4 text-primary" aria-hidden="true" /><strong className="block text-sm">{habitCount}</strong><span className="text-[10px] text-muted-foreground">Active habits</span></div>
+        </div>
+        <p className="mt-3 text-left text-[10px] text-muted-foreground">Any eligible completion on consecutive days through {streakCutoff}. Flexible weekly quotas are shown per week.</p>
+      </CardContent>
+    </Card>
   );
 }

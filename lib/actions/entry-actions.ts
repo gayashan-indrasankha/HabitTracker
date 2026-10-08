@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth/session';
 import { ToggleEntrySchema } from '@/lib/validations/entry';
 import { upsertHabitEntry, deleteHabitEntry } from '@/lib/dal/habit-entries';
@@ -62,5 +63,8 @@ export async function toggleEntryAction(
     return { error: 'Could not save this day. Please try again.' };
   }
 
+  revalidatePath('/dashboard');
+  revalidatePath('/today');
+  revalidatePath('/review');
   return { success: true };
 }

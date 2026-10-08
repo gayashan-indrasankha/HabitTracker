@@ -11,26 +11,26 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await page.getByLabel('Password', { exact: true }).fill('Tracker-test-password-42');
   await page.getByLabel('Confirm password').fill('Tracker-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page).toHaveURL(/\/today/);
 
   await page.goto('/habits/new');
   await page.getByLabel(/Habit Name/).fill(habitName);
-  await page.getByLabel(/Monthly Target/).fill('20');
+  await page.getByLabel(/Monthly Target/).fill('1');
   await page.getByLabel('Start Date').fill(today);
   await page.getByRole('button', { name: 'Save Habit' }).click();
   await expect(page).toHaveURL(/\/habits$/);
 
   await page.goto('/dashboard');
   const row = page.getByRole('row', { name: new RegExp(habitName) });
-  await expect(row).toContainText('0 / 20');
+  await expect(row).toContainText('0 / 1');
   await row.getByRole('button', { name: `Mark complete for ${habitName} on ${today}` }).click();
-  await expect(row).toContainText('1 / 20');
+  await expect(row).toContainText('1 / 1');
   await page.reload();
-  await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('1 / 20');
+  await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('1 / 1');
   await page.getByRole('row', { name: new RegExp(habitName) }).getByRole('button', { name: `Remove completion for ${habitName} on ${today}` }).click();
-  await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 20');
+  await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 1');
   await page.reload();
-  await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 20');
+  await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 1');
 
   for (const [month, count] of [['2025-02', 28], ['2024-02', 29], ['2026-04', 30], ['2026-10', 31]] as const) {
     await page.goto(`/dashboard?month=${month}`);

@@ -11,9 +11,9 @@ interface WeeklyBarChartProps {
 export function WeeklyBarChart({ data }: WeeklyBarChartProps) {
   if (data.length === 0 || data.every((d) => d.total === 0)) {
     return (
-      <Card>
+      <Card className="analytics-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Weekly Summary</CardTitle>
+          <CardTitle className="text-sm font-medium">Weekly fixed-habit adherence</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-6">
           <p className="text-sm text-muted-foreground">No data yet</p>
@@ -23,12 +23,12 @@ export function WeeklyBarChart({ data }: WeeklyBarChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="analytics-card">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Weekly Summary</CardTitle>
+        <CardTitle className="text-sm font-medium">Weekly fixed-habit adherence</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-32">
+        <div className="h-44">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />

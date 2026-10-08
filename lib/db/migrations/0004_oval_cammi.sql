@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "tasks_user_date_priority_unique" ON "tasks" USING btree ("user_id","scheduled_date","daily_priority");

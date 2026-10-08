@@ -26,9 +26,9 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card>
+      <Card className="analytics-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
+          <CardTitle className="text-sm font-medium">Daily fixed-habit adherence</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-6">
           <p className="text-sm text-muted-foreground">No data yet</p>
@@ -38,12 +38,12 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="analytics-card">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
+        <CardTitle className="text-sm font-medium">Daily fixed-habit adherence</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-32">
+        <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />

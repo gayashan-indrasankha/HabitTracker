@@ -6,6 +6,8 @@ import { CompletionDonut } from '@/components/analytics/completion-donut';
 import { DailyLineChart } from '@/components/analytics/daily-line-chart';
 import { WeeklyBarChart } from '@/components/analytics/weekly-bar-chart';
 import { TopHabitsList } from '@/components/analytics/top-habits-list';
+import { ProgressSummary } from '@/components/dashboard/progress-summary';
+import { NotesPreview } from '@/components/dashboard/notes-preview';
 
 interface AnalyticsPanelProps {
   habits: SelectHabit[];
@@ -14,6 +16,10 @@ interface AnalyticsPanelProps {
   today: Date;
   stats: CompletionStats;
   weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  currentStreak: number;
+  bestStreak: number;
+  streakCutoff: string;
+  note: string;
 }
 
 export function AnalyticsPanel({
@@ -23,6 +29,10 @@ export function AnalyticsPanel({
   today,
   stats,
   weekStartsOn,
+  currentStreak,
+  bestStreak,
+  streakCutoff,
+  note,
 }: AnalyticsPanelProps) {
   const dailyProgress = calculateDailyProgress(habits, entries, daysInMonth, today);
   const weeklySummary = calculateWeeklySummary(
@@ -35,11 +45,19 @@ export function AnalyticsPanel({
   const topHabits = calculateTopHabits(habits, entries, daysInMonth, today, 5);
 
   return (
-    <section aria-label="Habit analytics" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <CompletionDonut stats={stats} />
-      <TopHabitsList topHabits={topHabits} />
-      <DailyLineChart data={dailyProgress} />
-      <WeeklyBarChart data={weeklySummary} />
+    <section aria-label="Habit analytics" className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_minmax(0,2.25fr)_minmax(190px,1fr)]">
+      <div className="grid gap-4">
+        <ProgressSummary stats={stats} currentStreak={currentStreak} bestStreak={bestStreak} habitCount={habits.length} streakCutoff={streakCutoff} />
+        <TopHabitsList topHabits={topHabits} />
+      </div>
+      <div className="grid gap-4">
+        <DailyLineChart data={dailyProgress} />
+        <WeeklyBarChart data={weeklySummary} />
+      </div>
+      <div className="grid gap-4 md:col-span-2 xl:col-span-1">
+        <CompletionDonut stats={stats} />
+        <NotesPreview content={note} />
+      </div>
     </section>
   );
 }

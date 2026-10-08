@@ -70,10 +70,10 @@ export async function updateHabit(
     .update(habits)
     .set({
       ...input,
-      description: input.description || null,
-      icon: input.icon || null,
-      category: input.category || null,
-      endDate: input.endDate || null,
+      ...(input.description !== undefined ? { description: input.description || null } : {}),
+      ...(input.icon !== undefined ? { icon: input.icon || null } : {}),
+      ...(input.category !== undefined ? { category: input.category || null } : {}),
+      ...(input.endDate !== undefined ? { endDate: input.endDate || null } : {}),
       updatedAt: new Date(),
     })
     .where(and(eq(habits.id, habitId), eq(habits.userId, userId)))
@@ -109,11 +109,15 @@ export async function unarchiveHabit(habitId: string, userId: string) {
  * Reorder habits by updating sort_order.
  */
 export async function reorderHabits(userId: string, orderedIds: string[]) {
-  const updates = orderedIds.map((id, index) =>
-    db
-      .update(habits)
-      .set({ sortOrder: index, updatedAt: new Date() })
-      .where(and(eq(habits.id, id), eq(habits.userId, userId))),
-  );
-  await Promise.all(updates);
+  if (new Set(orderedIds).size !== orderedIds.length) throw new Error('Invalid habit order');
+  await db.transaction(async (tx) => {
+    const owned = await tx.select({ id: habits.id }).from(habits)
+      .where(and(eq(habits.userId, userId), eq(habits.archived, false)));
+    if (owned.length !== orderedIds.length ||
+      owned.some(({ id }) => !orderedIds.includes(id))) throw new Error('Invalid habit order');
+    for (const [index, id] of orderedIds.entries()) {
+      await tx.update(habits).set({ sortOrder: index, updatedAt: new Date() })
+        .where(and(eq(habits.id, id), eq(habits.userId, userId)));
+    }
+  });
 }

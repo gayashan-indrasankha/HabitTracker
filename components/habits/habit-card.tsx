@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import type { SelectHabit } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  MoreHorizontal,
-  Pencil,
-  Archive,
-  ArchiveRestore,
-  Loader2,
-} from 'lucide-react';
+import { MoreHorizontal, Pencil, Archive, ArchiveRestore, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { archiveHabitAction, unarchiveHabitAction } from '@/lib/actions/habit-actions';
 
@@ -28,13 +22,18 @@ interface HabitCardProps {
 
 export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState('');
 
   function handleArchive() {
+    setError('');
     startTransition(async () => {
-      if (isArchived) {
-        await unarchiveHabitAction(habit.id);
-      } else {
-        await archiveHabitAction(habit.id);
+      try {
+        const result = isArchived
+          ? await unarchiveHabitAction(habit.id)
+          : await archiveHabitAction(habit.id);
+        if (result.error) setError(result.error);
+      } catch {
+        setError('Could not change this habit. Try again.');
       }
     });
   }
@@ -86,9 +85,7 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
               <DropdownMenuItem
                 onClick={handleArchive}
                 className={
-                  isArchived
-                    ? 'text-emerald-600 focus:text-emerald-600'
-                    : 'text-muted-foreground'
+                  isArchived ? 'text-emerald-600 focus:text-emerald-600' : 'text-muted-foreground'
                 }
               >
                 {isArchived ? (
@@ -108,8 +105,11 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
         </div>
 
         {habit.description && (
-          <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-            {habit.description}
+          <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{habit.description}</p>
+        )}
+        {error && (
+          <p role="alert" className="mt-2 text-xs text-destructive">
+            {error}
           </p>
         )}
 
