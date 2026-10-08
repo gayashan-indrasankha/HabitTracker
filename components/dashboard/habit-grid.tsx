@@ -96,7 +96,7 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
                   scope="colgroup"
                   key={week[0]?.date}
                   colSpan={week.length}
-                  className="border-r border-white/20 px-1 py-2 text-center"
+                  className="whitespace-nowrap border-r border-white/20 px-1 py-2 text-center"
                 >
                   Week {index + 1}
                 </th>
