@@ -1,12 +1,18 @@
 import { HabitForm } from '@/components/habits/habit-form';
 import { createHabitAction } from '@/lib/actions/habit-actions';
-import { format } from 'date-fns';
+import { requireUser } from '@/lib/auth/session';
+import { getUserSettings } from '@/lib/dal/user-settings';
+import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
-export default function NewHabitPage() {
-  const today = format(new Date(), 'yyyy-MM-dd');
+export const metadata = { title: 'New Habit | HabitFlow' };
+
+export default async function NewHabitPage() {
+  const user = await requireUser();
+  const settings = await getUserSettings(user.id);
+  const today = toDateString(getTodayInTimezone(settings.timezone));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

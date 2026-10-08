@@ -25,6 +25,7 @@ test('the local calendar day is eligible when UTC is still yesterday', async ({ 
   await expect(page).toHaveURL(/\/dashboard/);
 
   await page.goto('/habits/new');
+  await expect(page.getByLabel('Start Date')).toHaveValue(today);
   await page.getByLabel(/Habit Name/).fill(habit);
   await page.getByLabel(/Monthly Target/).fill('1');
   await page.getByLabel('Start Date').fill('2026-10-01');
