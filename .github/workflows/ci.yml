@@ -60,6 +60,10 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Browser regression suite
         run: npm run test:e2e
+      - name: Local midnight boundary
+        env:
+          HABITFLOW_TEST_NOW: '2026-10-08T18:40:00Z'
+        run: npm run test:e2e -- timezone-midnight.spec.ts
       - name: Upload failure screenshots
         if: failure()
         uses: actions/upload-artifact@v4
