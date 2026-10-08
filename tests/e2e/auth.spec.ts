@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('two browser sessions keep separate user identities', async ({ browser }) => {
+  test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
   const first = await browser.newContext();
   const second = await browser.newContext();
   try {
@@ -34,6 +35,7 @@ test('two browser sessions keep separate user identities', async ({ browser }) =
 });
 
 test('registration, persistent session, logout, login, and protected routes', async ({ page }) => {
+  test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
   const email = `phase2-${Date.now()}@example.test`;
   const password = 'Phase2-test-password-42';
 

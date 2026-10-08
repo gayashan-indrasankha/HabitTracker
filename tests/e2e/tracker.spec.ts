@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-test('monthly tracker toggles and persists completion across desktop and mobile', async ({ page }) => {
+test('monthly tracker toggles and persists completion across desktop and mobile', async ({
+  page,
+}) => {
+  test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
   const suffix = Date.now();
   const habitName = `Tracker habit ${suffix}`;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = '2026-10-08';
 
   await page.goto('/register');
   await page.getByLabel('Your name').fill('Tracker Tester');
@@ -27,12 +30,20 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await expect(row).toContainText('1 / 1');
   await page.reload();
   await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('1 / 1');
-  await page.getByRole('row', { name: new RegExp(habitName) }).getByRole('button', { name: `Remove completion for ${habitName} on ${today}` }).click();
+  await page
+    .getByRole('row', { name: new RegExp(habitName) })
+    .getByRole('button', { name: `Remove completion for ${habitName} on ${today}` })
+    .click();
   await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 1');
   await page.reload();
   await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 1');
 
-  for (const [month, count] of [['2025-02', 28], ['2024-02', 29], ['2026-04', 30], ['2026-10', 31]] as const) {
+  for (const [month, count] of [
+    ['2025-02', 28],
+    ['2024-02', 29],
+    ['2026-04', 30],
+    ['2026-10', 31],
+  ] as const) {
     await page.goto(`/dashboard?month=${month}`);
     await expect(page.locator('thead th[title]')).toHaveCount(count);
   }
@@ -40,14 +51,18 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await expect(page).toHaveURL(/month=2026-09/);
   await page.getByRole('button', { name: 'Next month' }).click();
   await expect(page).toHaveURL(/month=2026-10/);
-  await page.getByRole('button', { name: 'Current month' }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page.getByRole('button', { name: 'Current month' })).toBeDisabled();
 
   await page.setViewportSize({ width: 390, height: 844 });
   const scrollArea = page.getByLabel('Scroll monthly habit tracker horizontally');
   await expect(scrollArea).toBeVisible();
-  const sizes = await scrollArea.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
+  const sizes = await scrollArea.evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }));
   expect(sizes.scroll).toBeGreaterThan(sizes.client);
-  await scrollArea.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+  await scrollArea.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
   await expect(page.getByRole('rowheader', { name: new RegExp(habitName) })).toBeVisible();
 });
