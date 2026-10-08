@@ -6,12 +6,12 @@ This is a review checklist and runbook. No cloud resources are created by this r
 
 Set these in the Vercel **Production** environment. Use different values and a separate Neon branch for Preview. Never put real values in Git or expose the database URL or auth secret with `NEXT_PUBLIC_`.
 
-| Variable | Production value |
-| --- | --- |
-| `DATABASE_URL` | Neon **pooled** PostgreSQL URL, ending with `?sslmode=require` (or containing `sslmode=require` among query parameters). Runtime only. |
-| `BETTER_AUTH_SECRET` | Unique random value of at least 32 characters. Do not reuse the development or Preview secret. |
-| `BETTER_AUTH_URL` | Canonical public HTTPS origin, such as `https://habitflow.example.com`. No path. |
-| `NEXT_PUBLIC_APP_URL` | Same canonical HTTPS origin. This value is embedded in client bundles. |
+| Variable              | Production value                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | Neon **pooled** PostgreSQL URL, ending with `?sslmode=require` (or containing `sslmode=require` among query parameters). Runtime only. |
+| `BETTER_AUTH_SECRET`  | Unique random value of at least 32 characters. Do not reuse the development or Preview secret.                                         |
+| `BETTER_AUTH_URL`     | Canonical public HTTPS origin, such as `https://habitflow.example.com`. No path.                                                       |
+| `NEXT_PUBLIC_APP_URL` | Same canonical HTTPS origin. This value is embedded in client bundles.                                                                 |
 
 `MIGRATION_DATABASE_URL` is optional for a separately run migration process. Use a Neon **direct** URL with TLS when supplied; keep it out of Vercel's application runtime environment. The migration tool falls back to `DATABASE_URL` for local development. `NODE_ENV` and `VERCEL_ENV` are platform managed. Production validation rejects a localhost database, a database URL without `sslmode=require`, or a non-HTTPS/mismatched public origin when `VERCEL_ENV=production`.
 
@@ -31,6 +31,8 @@ For migration CLI execution, `drizzle.config.ts` prefers `MIGRATION_DATABASE_URL
 Vercel: Framework Preset **Next.js**, root directory repository root, install command `npm ci`, build command `npm run build`, no custom output directory. Use Node.js 20.9 or newer supported by the pinned Next.js version. The app uses Node runtime database connections; keep the database access out of Edge middleware.
 
 Before promoting a release run `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` against an isolated test database, and `npm run build`. After applying migrations, deploy the reviewed commit, visit `/api/health`, then verify registration/login, a protected route, a habit toggle, and logout using a dedicated smoke-test account.
+
+Also require `npm run format:check`, fresh and existing-data migrations on disposable PostgreSQL and PGlite, and green GitHub web and Windows package jobs. The CI workflows never connect to Neon or deploy. The release matrix and any outstanding packaged GUI checks are recorded in [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Logs, errors, and seeds
 

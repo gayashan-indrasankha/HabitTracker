@@ -4,6 +4,8 @@ For Vercel and Neon production preparation, environment settings, migrations, an
 
 For the double-click Windows application, see [DESKTOP.md](DESKTOP.md).
 
+For reproducible release gates, migration upgrades, browser coverage, and observed outcomes, see [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+
 HabitFlow is a Next.js 16 personal planning app built on the existing habit tracker. Today connects three selected tasks, time blocks, applicable habits, and a private daily note. Week, Goals, and Review provide a lightweight planning loop. The original monthly tracker remains at `/dashboard?month=YYYY-MM`.
 
 ## Requirements
@@ -62,6 +64,8 @@ The web PostgreSQL and desktop PGlite databases remain separate. No automatic sy
 | `npm run desktop:smoke`                      | Smoke test the built standalone server with a fresh embedded database           |
 
 Scheduling regression checks use a disposable database on a local PostgreSQL server. Set `HABITFLOW_TEST_ADMIN_URL` to a loopback admin database URL, then run `node tests/integration/scheduling-postgres.mjs` for fresh and upgrade migrations or `node tests/e2e/run-scheduling.mjs` for the focused browser flow. Each runner creates a randomly named database and drops only that database afterward. The browser runner uses port 3100 and a separate `.next-e2e` output directory. For a desktop server smoke using that build, set `HABITFLOW_SMOKE_BUILD_DIR=.next-e2e` before `npm run desktop:smoke`.
+
+The P4 release suite uses `node tests/integration/release-upgrade.mjs pglite` for six historical PGlite upgrade boundaries. With a loopback-only `HABITFLOW_TEST_ADMIN_URL` set, run `node tests/integration/release-upgrade.mjs postgres` for disposable PostgreSQL databases and `npm run test:e2e` for all browser workflows. `npm run test:e2e -- release-core.spec.ts` selects a file. Browser tests use a fixed application clock and Playwright-managed Chromium (`npx playwright install chromium` locally). CI runs the same checks on pushes and pull requests. The Windows job packages the portable launcher and runs `node tests/desktop/portable.mjs` against the packaged Electron executable, including a clean restart and PGlite persistence check.
 
 On Windows PowerShell systems that block `npm.ps1`, use `npm.cmd` in place of `npm`.
 

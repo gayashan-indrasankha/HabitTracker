@@ -220,3 +220,7 @@ The current P0–P2 working tree is retained. P3 adds one nested Goals evidence 
 6. Internship opportunities use explicit application dates, stage history, filtering, and one linked ordinary follow-up task per application.
 7. Migrations `0011`–`0013` add only P3 tables, owner references, and optional scored interview results; the explicit JSON backup includes them. [EVIDENCE.md](EVIDENCE.md) specifies indicators, formulas, and limits.
 8. Focused unit, PostgreSQL, PGlite, browser, desktop, and P0–P2 regression checks are the release gates. This work does not apply production migrations or deploy.
+
+## P4 release verification (2026-10-08)
+
+P4 adds isolated browser regression tests for authentication, habit lifecycle, weekly review, export privacy, and five responsive widths alongside the existing P0–P3 suites. A migration harness applies genuine historical SQL through six earlier boundaries, preserves representative records, and checks constraints after PostgreSQL and PGlite upgrades. Web and Windows GitHub Actions jobs reproduce the applicable gates. The release matrix in [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) records executed results and distinguishes a packaged GUI restart from server-only smoke tests. No production data, migration target, or deployment is involved.

@@ -20,3 +20,5 @@ The build creates a Next.js standalone server and packages Electron, PGlite, mig
 The web deployment and its Neon database remain separately configured in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 For a noninteractive desktop runtime check after `npm run build`, run `npm run desktop:smoke`. It starts a fresh temporary PGlite database, applies all checked-in migrations, registers a test account, and requests Today, Week, Goals, Review, the old Dashboard, and JSON export through the standalone server. It does not open an Electron window or touch the usual desktop application data directory.
+
+Release verification distinguishes this server smoke from opening the packaged `.exe`. The Windows CI job builds and inspects the portable bundle, then runs `node tests/desktop/portable.mjs` against its packaged Electron executable to verify a real window, authenticated writes, and persistence after a clean restart. The NSIS launcher itself requires a separate direct launch check because Playwright attaches to the child Electron process. See [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) for observed results and remaining desktop checks.
