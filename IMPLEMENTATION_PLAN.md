@@ -1,5 +1,9 @@
 # HabitFlow implementation plan
 
+## P1 editing status (2026-10-08)
+
+Goal and project forms now support all meaningful saved fields, optional-field clearing, and reversible archiving. Time-block revisions now retain future rule metadata, while occurrence exceptions keep stable historical identities. Today offers searchable backlog selection and transactional priority assignment, swap, replacement, removal, and compaction. Migration `0008` is additive. Verification results and remaining limits are reported with the implementation handoff; this section describes the implemented scope, not a production deployment.
+
 ## Current state (audit, 2026-10-05)
 
 The repository already contains a Next.js 16 App Router skeleton, Drizzle schema and data access functions, Better Auth setup, server actions, habit/entry/note/settings forms, dashboard grid, and analytics components. The domain code is a useful starting point, but the product is not yet runnable or production ready.
@@ -191,3 +195,28 @@ Migrations `0003`–`0006` add domain tables, ownership constraints, unique dail
 - The template does not configure rolling two-training-days/one-rest-day alternation, monthly travel days, commute buffers, meal checks, or body-weight reminder notifications. These are left as editable planning choices.
 - The weekly review shows actual weight average and a prior-week comparison; a multi-week trend chart and richer category time accounting remain future work.
 - Real-browser end-to-end tests and standard PostgreSQL migration verification must run against an isolated test environment before deployment.
+
+## P2 flexible weekly planning (2026-10-08)
+
+The current working tree includes verified P0 effective-dated scheduling and P1 editing/priority controls. P2 builds on those records without replacing their identities or removing prior work.
+
+1. Week now reports effective fixed and flexible minutes, area totals, daily distribution, recorded actual minutes, and overload against an optional personal flexible capacity.
+2. A compact Adjust disclosure uses the existing one-occurrence action to move, retime, shorten, skip, and restore flexible sessions. Collision previews and Save use the P0 policy and transaction lock.
+3. The optional fifth gym visit is a separate template-keyed series, with effective-dated type, day, time, and enabled state. Four existing template workouts and rest days remain intact.
+4. One-off time-off records store user-selected dates, optional local ranges, notes, and status. Preview lists fixed/flexible sessions; selected flexible sessions become linked excused exceptions. Cancel restores linked sessions after conflict checks.
+5. Reduced and Minimum Today modes emphasize fewer priorities and flexible sessions while retaining a full-plan disclosure, urgent deadlines, and fixed commitments. A separately stored smaller action cannot complete a full habit.
+6. Migrations `0009` and `0010` add capacity, time off and its ownership link, and minimum-action fields. Backup export includes time off and revisions.
+7. Focused workload unit tests, PostgreSQL/PGlite constraint checks, browser workflows, and P0/P1 regression checks cover the new behavior. Run the verification commands listed in README before release. No production database migration or deployment is part of this work.
+
+## P3 evidence and career tracking (2026-10-08)
+
+The current P0–P2 working tree is retained. P3 adds one nested Goals evidence view and small Review/Today summaries. Existing grades, tasks, milestones, goals, and `metric_entries` remain the source for their respective outcomes and measurements. No global score or automatic competence claim is introduced.
+
+1. Subject topics and dated practice attempts show scored accuracy, weak and due topics, and user-confirmed mastery separately from university grades.
+2. Milestone criteria and reviews sit beside existing milestone tasks. Current acceptance requires all current criteria met; each review also stores a historical criteria snapshot.
+3. Editable interview topics and practice sessions show assessed weak areas and can create one linked ordinary follow-up task.
+4. English sessions, optional reviewer labels, and a reviewable grammar correction log distinguish practice minutes from subjective ratings.
+5. Body-weight edits reuse `metric_entries`; a pure trend calculation averages same-day readings before calendar-week averages and leaves missing periods empty.
+6. Internship opportunities use explicit application dates, stage history, filtering, and one linked ordinary follow-up task per application.
+7. Migrations `0011`–`0013` add only P3 tables, owner references, and optional scored interview results; the explicit JSON backup includes them. [EVIDENCE.md](EVIDENCE.md) specifies indicators, formulas, and limits.
+8. Focused unit, PostgreSQL, PGlite, browser, desktop, and P0–P2 regression checks are the release gates. This work does not apply production migrations or deploy.
