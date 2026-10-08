@@ -40,8 +40,13 @@ export {
  * where year/month/day match the user's local date.
  */
 export function getTodayInTimezone(timezone: string): Date {
-  const now = new Date();
+  const now = serverNow();
   return toZonedTime(now, timezone);
+}
+
+export function serverNow(): Date {
+  const fixture = process.env.NODE_ENV !== 'production' && process.env.HABITFLOW_TEST_NOW;
+  return fixture ? new Date(fixture) : new Date();
 }
 
 /**

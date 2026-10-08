@@ -15,11 +15,11 @@ async function freeLoopbackPort() {
   });
 }
 
-async function startEmbeddedDatabase(dataDir, migrationsFolder) {
+async function startEmbeddedDatabase(dataDir, migrationsFolder, options = {}) {
   const client = new PGlite(dataDir);
   try {
     await migrate(drizzle({ client }), { migrationsFolder });
-    const port = await freeLoopbackPort();
+    const port = options.port ?? await freeLoopbackPort();
     const socket = new PGLiteSocketServer({ db: client, host: '127.0.0.1', port, maxConnections: 12 });
     await socket.start();
     return {

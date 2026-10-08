@@ -21,14 +21,15 @@ async function waitForHealthy(origin, child) {
 
 async function main() {
   const packageRoot = process.env.HABITFLOW_SMOKE_ROOT ? path.resolve(process.env.HABITFLOW_SMOKE_ROOT) : path.resolve();
+  const buildDir = process.env.HABITFLOW_SMOKE_BUILD_DIR === '.next-e2e' ? '.next-e2e' : '.next';
   const dataRoot = mkdtempSync(path.join(tmpdir(), 'habitflow-smoke-'));
   const database = await startEmbeddedDatabase(path.join(dataRoot, 'server-smoke-db'), path.join(packageRoot, 'lib/db/migrations'));
   let child;
   try {
     const port = await freeLoopbackPort();
     const origin = `http://127.0.0.1:${port}`;
-    child = spawn(process.execPath, [path.join(packageRoot, '.next/standalone/server.js')], {
-      cwd: path.join(packageRoot, '.next/standalone'),
+    child = spawn(process.execPath, [path.join(packageRoot, buildDir, 'standalone/server.js')], {
+      cwd: path.join(packageRoot, buildDir, 'standalone'),
       windowsHide: true,
       stdio: 'inherit',
       env: { ...process.env, NODE_ENV: 'production', VERCEL_ENV: '', HOSTNAME: '127.0.0.1', PORT: String(port), DATABASE_URL: database.url, BETTER_AUTH_URL: origin, NEXT_PUBLIC_APP_URL: origin, BETTER_AUTH_SECRET: crypto.randomBytes(48).toString('base64url') },

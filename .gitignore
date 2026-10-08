@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
 
 # production
@@ -22,6 +23,7 @@
 /dist-desktop/
 /desktop-stage/
 /.desktop-test/
+/.local-embedded-db/
 
 # misc
 .DS_Store
