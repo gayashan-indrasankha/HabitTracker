@@ -32,7 +32,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">{CHART_TITLE}</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center py-6">
+        <CardContent className="flex h-48 items-center justify-center">
           <p className="text-sm text-muted-foreground">No data yet</p>
         </CardContent>
       </Card>
@@ -77,7 +77,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
                 dataKey="rate"
                 stroke="var(--primary)"
                 strokeWidth={2}
-                dot={false}
+                dot={chartData.length === 1 ? { r: 4 } : false}
                 activeDot={{ r: 4 }}
               />
             </LineChart>

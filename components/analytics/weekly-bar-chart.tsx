@@ -15,7 +15,7 @@ export function WeeklyBarChart({ data }: WeeklyBarChartProps) {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">Weekly fixed-habit adherence</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center py-6">
+        <CardContent className="flex h-44 items-center justify-center">
           <p className="text-sm text-muted-foreground">No data yet</p>
         </CardContent>
       </Card>

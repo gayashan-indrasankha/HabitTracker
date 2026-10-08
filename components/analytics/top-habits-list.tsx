@@ -13,7 +13,9 @@ export function TopHabitsList({ topHabits }: TopHabitsListProps) {
       </CardHeader>
       <CardContent>
         {topHabits.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">No data yet</p>
+          <p className="flex min-h-32 items-center justify-center text-center text-sm text-muted-foreground">
+            No data yet
+          </p>
         ) : (
           <ol className="space-y-3">
             {topHabits.map((item, index) => (
