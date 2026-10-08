@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "dist-desktop", "desktop-stage", ".desktop-test"]
+  "exclude": ["node_modules", "dist-desktop", "desktop-stage", ".desktop-test", ".next-e2e"]
 }
