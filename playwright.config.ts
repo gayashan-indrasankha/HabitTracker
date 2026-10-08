@@ -8,17 +8,18 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI || process.env.HABITFLOW_E2E_ISOLATED ? 1 : undefined,
-  reporter: 'html',
+  reporter: process.env.CI ? [['line'], ['html', { open: 'never' }]] : 'line',
   use: {
     baseURL: `http://localhost:${port}`,
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
   webServer: {

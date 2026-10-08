@@ -46,10 +46,7 @@ try {
       [
         'node_modules/playwright/cli.js',
         'test',
-        ...(process.argv.slice(2).length
-          ? process.argv.slice(2)
-          : ['tests/e2e/scheduling.spec.ts']),
-        '--reporter=line',
+        ...(process.argv.slice(2).length ? process.argv.slice(2) : ['tests/e2e']),
       ],
       { env, stdio: 'inherit' },
     );
