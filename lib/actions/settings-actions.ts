@@ -1,9 +1,8 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth/session';
 import { UserSettingsSchema } from '@/lib/validations/settings';
-import { upsertUserSettings } from '@/lib/dal/user-settings';
+import { getUserSettings, upsertUserSettings } from '@/lib/dal/user-settings';
 
 export type SettingsActionState = {
   error?: string;
@@ -35,6 +34,19 @@ export async function updateSettingsAction(
   }
 
   await upsertUserSettings(userId, parsed.data);
-  revalidatePath('/settings');
+  return { success: true };
+}
+
+export async function updateThemePreferenceAction(theme: string): Promise<SettingsActionState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'Unauthorized' };
+  if (theme !== 'light' && theme !== 'dark') return { error: 'Invalid theme.' };
+
+  const current = await getUserSettings(user.id);
+  await upsertUserSettings(user.id, {
+    timezone: current.timezone,
+    weekStartsOn: current.weekStartsOn,
+    theme,
+  });
   return { success: true };
 }

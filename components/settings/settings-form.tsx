@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useTheme } from 'next-themes';
 import { updateSettingsAction } from '@/lib/actions/settings-actions';
 import type { SettingsActionState } from '@/lib/actions/settings-actions';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
 
 // Common IANA timezones
 const TIMEZONES = [
@@ -59,14 +59,35 @@ interface SettingsFormProps {
 const initialState: SettingsActionState = {};
 
 export function SettingsForm({ defaultValues }: SettingsFormProps) {
-  const [state, formAction, isPending] = useActionState(updateSettingsAction, initialState);
+  const [state, setState] = useState<SettingsActionState>(initialState);
+  const [isPending, setIsPending] = useState(false);
+  const { setTheme: setAppTheme } = useTheme();
 
   const [timezone, setTimezone] = useState(defaultValues.timezone);
   const [weekStartsOn, setWeekStartsOn] = useState(String(defaultValues.weekStartsOn));
   const [theme, setTheme] = useState(defaultValues.theme);
+  const [changedSinceSubmit, setChangedSinceSubmit] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const submittedTheme = theme;
+    setState({});
+    setChangedSinceSubmit(false);
+    setIsPending(true);
+    try {
+      const result = await updateSettingsAction({}, formData);
+      setState(result);
+      if (result.success) setAppTheme(submittedTheme);
+    } catch {
+      setState({ error: 'Could not save settings. Try again.' });
+    } finally {
+      setIsPending(false);
+    }
+  }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="timezone" value={timezone} />
       <input type="hidden" name="weekStartsOn" value={weekStartsOn} />
       <input type="hidden" name="theme" value={theme} />
@@ -78,7 +99,13 @@ export function SettingsForm({ defaultValues }: SettingsFormProps) {
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="timezone-select">Timezone</Label>
-            <Select value={timezone} onValueChange={setTimezone}>
+            <Select
+              value={timezone}
+              onValueChange={(value) => {
+                setTimezone(value);
+                setChangedSinceSubmit(true);
+              }}
+            >
               <SelectTrigger id="timezone-select">
                 <SelectValue />
               </SelectTrigger>
@@ -94,7 +121,13 @@ export function SettingsForm({ defaultValues }: SettingsFormProps) {
 
           <div className="space-y-1.5">
             <Label htmlFor="week-start-select">Week Starts On</Label>
-            <Select value={weekStartsOn} onValueChange={setWeekStartsOn}>
+            <Select
+              value={weekStartsOn}
+              onValueChange={(value) => {
+                setWeekStartsOn(value);
+                setChangedSinceSubmit(true);
+              }}
+            >
               <SelectTrigger id="week-start-select">
                 <SelectValue />
               </SelectTrigger>
@@ -117,7 +150,13 @@ export function SettingsForm({ defaultValues }: SettingsFormProps) {
         <CardContent>
           <div className="space-y-1.5">
             <Label htmlFor="theme-select">Theme</Label>
-            <Select value={theme} onValueChange={setTheme}>
+            <Select
+              value={theme}
+              onValueChange={(value) => {
+                setTheme(value);
+                setChangedSinceSubmit(true);
+              }}
+            >
               <SelectTrigger id="theme-select">
                 <SelectValue />
               </SelectTrigger>
@@ -133,13 +172,18 @@ export function SettingsForm({ defaultValues }: SettingsFormProps) {
         </CardContent>
       </Card>
 
-      {state.error && (
+      {state.error && !changedSinceSubmit && !isPending && (
         <div
           role="alert"
           className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {state.error}
         </div>
+      )}
+      {state.fieldErrors && !changedSinceSubmit && !isPending && (
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {Object.values(state.fieldErrors).flat().join(' ')}
+        </p>
       )}
 
       <div className="flex items-center gap-3">
@@ -148,8 +192,8 @@ export function SettingsForm({ defaultValues }: SettingsFormProps) {
           Save Settings
         </Button>
 
-        {state.success && !isPending && (
-          <span className="flex items-center gap-1 text-sm text-emerald-600">
+        {state.success && !isPending && !changedSinceSubmit && (
+          <span role="status" className="flex items-center gap-1 text-sm text-emerald-600">
             <CheckCircle2 className="h-4 w-4" />
             Saved successfully
           </span>

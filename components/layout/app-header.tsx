@@ -21,7 +21,7 @@ interface AppHeaderProps {
   settings: { theme: string };
 }
 
-export function AppHeader({ user }: AppHeaderProps) {
+export function AppHeader({ user, settings }: AppHeaderProps) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
@@ -46,28 +46,38 @@ export function AppHeader({ user }: AppHeaderProps) {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-card/80 px-4 backdrop-blur-sm md:px-6 lg:px-8">
-      <div>
+      <div className="min-w-0">
+        <Link href="/dashboard" className="text-sm font-black uppercase tracking-[.12em] lg:hidden">
+          Habit<span className="text-primary">Flow</span>
+        </Link>
         {signOutError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-xs text-destructive sm:text-sm">
             Could not sign out. Try again.
           </p>
         )}
       </div>
       <div className="flex items-center gap-2">
-        <ThemeToggle />
+        <ThemeToggle savedTheme={settings.theme} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="min-h-10 min-w-0 gap-2"
+              aria-label={`Account menu for ${user.name ?? user.email}`}
+            >
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold uppercase text-primary-foreground">
                 {(user.name ?? user.email)[0]}
               </div>
-              <span className="hidden text-sm md:block">{user.name ?? 'Account'}</span>
+              <span className="hidden max-w-40 truncate text-sm md:block">
+                {user.name ?? 'Account'}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel className="font-normal">
-              <p className="text-sm font-medium">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
+              <p className="max-w-64 break-words text-sm font-medium">{user.name ?? 'Account'}</p>
+              <p className="max-w-64 break-all text-xs text-muted-foreground">{user.email}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
