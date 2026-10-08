@@ -28,7 +28,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
     return (
       <Card className="analytics-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Daily fixed-habit adherence</CardTitle>
+          <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-6">
           <p className="text-sm text-muted-foreground">No data yet</p>
@@ -40,7 +40,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
   return (
     <Card className="analytics-card">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Daily fixed-habit adherence</CardTitle>
+        <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-48">
