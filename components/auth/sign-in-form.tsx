@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export function SignInForm({ nextPath = '/today' }: { nextPath?: string }) {
+export function SignInForm({ nextPath = '/dashboard' }: { nextPath?: string }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);

@@ -14,12 +14,12 @@ import {
 import { cn } from '@/lib/utils/cn';
 
 const navigation = [
+  { name: 'Home', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Today', href: '/today', icon: LayoutDashboard },
   { name: 'Week', href: '/week', icon: CalendarDays },
   { name: 'Habits', href: '/habits', icon: ListChecks },
   { name: 'Goals & Projects', href: '/goals', icon: Target },
   { name: 'Review & Insights', href: '/review', icon: ClipboardCheck },
-  { name: 'Month history', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Notes', href: '/notes', icon: NotebookPen },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
