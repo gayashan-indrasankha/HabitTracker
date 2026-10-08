@@ -16,7 +16,7 @@ export async function getUserSettings(userId: string) {
   return (
     result[0] ?? {
       userId,
-      timezone: 'UTC',
+      timezone: 'Asia/Colombo',
       weekStartsOn: 1,
       theme: 'system',
       flexibleCapacityMinutes: null,

@@ -58,7 +58,11 @@ export async function saveCapacityAction(
   if (!parsed.success) return fail('Choose 15–1440 minutes, or clear the capacity.');
   await db
     .insert(userSettings)
-    .values({ userId, flexibleCapacityMinutes: parsed.data === '' ? null : parsed.data })
+    .values({
+      userId,
+      timezone: 'Asia/Colombo',
+      flexibleCapacityMinutes: parsed.data === '' ? null : parsed.data,
+    })
     .onConflictDoUpdate({
       target: userSettings.userId,
       set: { flexibleCapacityMinutes: parsed.data === '' ? null : parsed.data },
