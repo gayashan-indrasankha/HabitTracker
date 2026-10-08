@@ -28,6 +28,9 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await expect(row).toContainText('0 / 1');
   await row.getByRole('button', { name: `Mark complete for ${habitName} on ${today}` }).click();
   await expect(row).toContainText('1 / 1');
+  const donut = page.getByRole('heading', { name: 'Fixed-schedule adherence' }).locator('../..');
+  await expect(donut).toContainText('1/1');
+  await expect(donut).not.toContainText('100%');
   await page.reload();
   await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('1 / 1');
   await page

@@ -23,7 +23,7 @@ export function CompletionDonut({ stats }: CompletionDonutProps) {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">Fixed-schedule adherence</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center py-6">
+        <CardContent className="flex h-48 items-center justify-center">
           <p className="text-sm text-muted-foreground">No data yet</p>
         </CardContent>
       </Card>
@@ -66,10 +66,8 @@ export function CompletionDonut({ stats }: CompletionDonutProps) {
               />
             </PieChart>
           </ResponsiveContainer>
-          {/* Center label overlay */}
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold">{stats.rate}%</span>
-            <span className="text-xs text-muted-foreground">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="text-sm font-semibold tabular-nums text-foreground">
               {stats.completed}/{stats.total}
             </span>
           </div>
