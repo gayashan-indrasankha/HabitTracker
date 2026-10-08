@@ -84,7 +84,7 @@ export const BlockSchema = z
 export const ExceptionSchema = z.object({
   blockId: z.uuid(),
   occurrenceDate: z.iso.date(),
-  status: z.enum(['started', 'completed', 'skipped', 'rescheduled']),
+  status: z.enum(['started', 'completed', 'skipped', 'rescheduled', 'planned']),
   overrideDate: optionalDate,
   overrideStartTime: z.union([time, z.literal('')]).transform((value) => value || null),
   overrideEndTime: z.union([time, z.literal('')]).transform((value) => value || null),
