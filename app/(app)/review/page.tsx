@@ -9,6 +9,8 @@ import { isFixedOccurrence, weekStart } from '@/lib/analytics/habit-month-progre
 import { addCalendarDays, expandBlocks, weekdayIndex } from '@/lib/planning/time-blocks';
 import { addMetricAction, saveReviewAction } from '@/lib/actions/life-actions';
 import { ActionForm } from '@/components/life/action-form';
+import { EvidenceReview } from '@/components/life/evidence-review';
+import { weightTrend } from '@/lib/evidence/summary';
 
 const prompts = [
   ['academic', 'Academic progress'],
@@ -31,7 +33,10 @@ export default async function ReviewPage({
   const settings = await getUserSettings(userId);
   const today = toDateString(getTodayInTimezone(settings.timezone));
   const query = (await searchParams).week;
-  const start = weekStart(query && z.iso.date().safeParse(query).success ? query : today, 1);
+  const start = weekStart(
+    query && z.iso.date().safeParse(query).success ? query : today,
+    settings.weekStartsOn,
+  );
   const end = addCalendarDays(start, 6);
   const [review, tasks, metrics, blockData, habits, entries] = await Promise.all([
     getReview(userId, start),
@@ -47,15 +52,19 @@ export default async function ReviewPage({
   } catch {
     answers = {};
   }
-  const occurrences = expandBlocks(blockData.rules, blockData.exceptions, start, end);
+  const occurrences = expandBlocks(
+    blockData.rules,
+    blockData.exceptions,
+    start,
+    end,
+    blockData.revisions,
+  );
   const completedSessions = occurrences.filter(
     (item) => item.occurrenceStatus === 'completed',
   ).length;
-  const skippedSessions = blockData.exceptions.filter(
-    (item) =>
-      item.status === 'skipped' && item.occurrenceDate >= start && item.occurrenceDate <= end,
-  ).length;
-  const plannedSessions = occurrences.length + skippedSessions;
+  const skippedSessions = occurrences.filter((item) => item.occurrenceStatus === 'skipped').length;
+  const excusedSessions = occurrences.filter((item) => item.occurrenceStatus === 'excused').length;
+  const plannedSessions = occurrences.length;
   const completedTasks = tasks.filter(
     (item) =>
       item.completedAt &&
@@ -81,12 +90,20 @@ export default async function ReviewPage({
     (item) =>
       item.type === 'Body weight' && item.unit === 'kg' && item.date >= start && item.date <= end,
   );
-  const weightAverage = weights.length
-    ? (weights.reduce((sum, item) => sum + item.value, 0) / weights.length).toFixed(1)
-    : null;
-  const previousWeights = metrics.filter(item => item.type === 'Body weight' && item.unit === 'kg' && item.date >= addCalendarDays(start, -7) && item.date < start);
-  const previousAverage = previousWeights.length ? previousWeights.reduce((sum, item) => sum + item.value, 0) / previousWeights.length : null;
-  const weightChange = weightAverage && previousAverage != null ? (Number(weightAverage) - previousAverage).toFixed(1) : null;
+  const trend = weightTrend(
+    metrics
+      .filter((item) => item.type === 'Body weight' && item.unit === 'kg')
+      .map((item) => ({ date: item.date, value: item.value })),
+    settings.weekStartsOn,
+    null,
+  );
+  const currentWeight = trend.weekly.find((item) => item.date === start);
+  const previousWeight = trend.weekly.find((item) => item.date === addCalendarDays(start, -7));
+  const weightAverage = currentWeight?.average.toFixed(1) ?? null;
+  const weightChange =
+    currentWeight && previousWeight
+      ? (currentWeight.average - previousWeight.average).toFixed(1)
+      : null;
   const categories = [...new Set(completedTasks.map((item) => item.area))];
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -113,8 +130,8 @@ export default async function ReviewPage({
           <p className="text-xs text-muted-foreground">
             {completedTasks.filter((item) => item.isMilestone).length} milestones · {studyMinutes}{' '}
             recorded study/project minutes · {completedSessions} of {plannedSessions} planned
-            sessions completed · {skippedSessions} explicitly skipped. Linked tasks are counted once
-            as tasks.
+            sessions completed · {skippedSessions} explicitly skipped · {excusedSessions} planned
+            time-off excusals. Linked tasks are counted once as tasks.
           </p>
         </div>
         <div className="rounded-2xl border bg-card p-4">
@@ -124,10 +141,14 @@ export default async function ReviewPage({
           </p>
           <p className="text-xs text-muted-foreground">
             {weights.length} recorded weight measurements this week.
-            {weightChange != null ? ` ${Number(weightChange) >= 0 ? '+' : ''}${weightChange} kg versus the prior weekly average.` : ' Add another week to see a trend.'} Actual grades remain in Goals.
+            {weightChange != null
+              ? ` ${Number(weightChange) >= 0 ? '+' : ''}${weightChange} kg versus the prior weekly average.`
+              : ' Add another week to see a trend.'}{' '}
+            Actual grades remain in Goals.
           </p>
         </div>
       </section>
+      <EvidenceReview userId={userId} start={start} end={end} today={today} />
       {categories.length > 0 && (
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="font-semibold">Finished tasks by life area</h2>
