@@ -26,6 +26,8 @@ import { eq } from 'drizzle-orm';
 import { logSessionMinutesAction } from '@/lib/actions/planning-actions';
 import { ruleOn } from '@/lib/planning/time-blocks';
 
+export const metadata = { title: 'Week | HabitFlow' };
+
 export default async function WeekPage({
   searchParams,
 }: {
@@ -95,7 +97,7 @@ export default async function WeekPage({
         capacity={settings.flexibleCapacityMinutes}
         dateLabel={dateLabel}
       />
-      <nav aria-label="Choose day" className="flex gap-2 overflow-x-auto lg:hidden">
+      <nav aria-label="Choose day" className="flex gap-2 overflow-x-auto pb-1 xl:hidden">
         {dates.map((date) => (
           <Link
             key={date}
@@ -107,12 +109,12 @@ export default async function WeekPage({
           </Link>
         ))}
       </nav>
-      <div className="grid gap-3 lg:grid-cols-7">
+      <div className="grid gap-3 xl:grid-cols-2 2xl:grid-cols-3">
         {dates.map((date) => (
           <section
             id={`day-${date}`}
             key={date}
-            className={`${focused === date ? '' : 'hidden lg:block'} min-w-0 rounded-2xl border bg-card p-3`}
+            className={`${focused === date ? '' : 'hidden xl:block'} min-w-0 scroll-mt-32 rounded-2xl border bg-card p-3 lg:scroll-mt-20`}
           >
             <h2 className="mb-3 border-b pb-2 text-sm font-bold">{dateLabel(date)}</h2>
             <div className="space-y-2">
