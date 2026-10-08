@@ -16,6 +16,8 @@ interface DailyLineChartProps {
   data: DailyProgress[];
 }
 
+const CHART_TITLE = 'Daily Progress';
+
 export function DailyLineChart({ data }: DailyLineChartProps) {
   const chartData = data
     .filter((d) => d.total > 0)
@@ -28,7 +30,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
     return (
       <Card className="analytics-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
+          <CardTitle className="text-sm font-medium">{CHART_TITLE}</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-6">
           <p className="text-sm text-muted-foreground">No data yet</p>
@@ -40,7 +42,7 @@ export function DailyLineChart({ data }: DailyLineChartProps) {
   return (
     <Card className="analytics-card">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Daily Progress</CardTitle>
+        <CardTitle className="text-sm font-medium">{CHART_TITLE}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-48">
