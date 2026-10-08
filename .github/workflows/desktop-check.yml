@@ -1,0 +1,48 @@
+name: Windows desktop package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Fresh embedded database
+        run: node scripts/check-embedded-migrations.mjs
+      - name: Existing-data embedded upgrades
+        run: node tests/integration/release-upgrade.mjs pglite
+      - name: Embedded database close and reopen
+        run: node tests/integration/pglite-persistence.mjs
+      - name: Standalone desktop server and authenticated routes
+        run: npm run build && npm run desktop:smoke
+      - name: Build Windows portable executable
+        run: npm run desktop:package
+      - name: Inspect portable bundle
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -LiteralPath dist-desktop -Filter '*.exe' -File | Select-Object -First 1
+          if (-not $exe -or $exe.Length -lt 1MB) { throw 'Portable executable missing or unexpectedly small' }
+          if (-not (Test-Path -LiteralPath desktop-stage/lib/db/migrations/meta/_journal.json)) { throw 'Migration journal missing from staged bundle' }
+          if (-not (Test-Path -LiteralPath desktop-stage/.next/standalone/server.js)) { throw 'Standalone server missing from staged bundle' }
+          Write-Output "Portable package: $($exe.Name), $($exe.Length) bytes"
+      - name: Packaged Electron UI and restart persistence
+        shell: pwsh
+        run: node tests/desktop/portable.mjs

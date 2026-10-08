@@ -1,0 +1,70 @@
+name: Quality gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: habitflow_ci
+          POSTGRES_PASSWORD: habitflow_ci_only
+          POSTGRES_DB: habitflow_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U habitflow_ci -d habitflow_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      HABITFLOW_TEST_ADMIN_URL: postgresql://habitflow_ci:habitflow_ci_only@127.0.0.1:5432/habitflow_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - name: Fresh PGlite constraints
+        run: node scripts/check-embedded-migrations.mjs
+      - name: Existing-data PGlite upgrades
+        run: node tests/integration/release-upgrade.mjs pglite
+      - name: Fresh PostgreSQL and existing-data upgrades
+        run: node tests/integration/release-upgrade.mjs postgres
+      - name: PostgreSQL scheduling and owner constraints
+        run: |
+          node tests/integration/scheduling-postgres.mjs
+          node tests/integration/p1-postgres.mjs
+          node tests/integration/p2-postgres.mjs
+          node tests/integration/p3-postgres.mjs
+      - name: Install managed Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser regression suite
+        run: npm run test:e2e
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-screenshots
+          path: test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
