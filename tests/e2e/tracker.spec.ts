@@ -53,6 +53,17 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await expect(page).toHaveURL(/month=2026-10/);
   await expect(page.getByRole('button', { name: 'Current month' })).toBeDisabled();
 
+  const weekHeader = page.locator('thead tr').first();
+  const octoberHeight = await weekHeader.evaluate((row) => row.getBoundingClientRect().height);
+  await page.getByRole('button', { name: 'Next month' }).click();
+  await expect(page).toHaveURL(/month=2026-11/);
+  await expect(page.locator('thead th[title]')).toHaveCount(30);
+  const novemberHeight = await weekHeader.evaluate((row) => row.getBoundingClientRect().height);
+  expect(novemberHeight).toBeCloseTo(octoberHeight, 0);
+  await page.goto('/dashboard?month=2016-02');
+  const februaryHeight = await weekHeader.evaluate((row) => row.getBoundingClientRect().height);
+  expect(februaryHeight).toBeCloseTo(octoberHeight, 0);
+
   await page.setViewportSize({ width: 390, height: 844 });
   const scrollArea = page.getByLabel('Scroll monthly habit tracker horizontally');
   await expect(scrollArea).toBeVisible();
