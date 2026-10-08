@@ -6,6 +6,8 @@ import { getUserSettings } from '@/lib/dal/user-settings';
 import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
 import { NotebookPen } from 'lucide-react';
 
+export const metadata = { title: 'Notes | HabitFlow' };
+
 export default async function NotesPage() {
   const userId = (await requireUser()).id;
   const settings = await getUserSettings(userId);
@@ -46,7 +48,7 @@ export default async function NotesPage() {
                 <p className="mb-2 text-xs font-medium text-muted-foreground">
                   {format(new Date(note.date + 'T00:00:00'), 'MMMM d, yyyy')}
                 </p>
-                <p className="whitespace-pre-wrap text-sm">{note.content}</p>
+                <p className="whitespace-pre-wrap break-words text-sm">{note.content}</p>
               </div>
             ))}
         </div>
