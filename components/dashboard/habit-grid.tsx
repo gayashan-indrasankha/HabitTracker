@@ -38,9 +38,8 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
   }
 
   const weeks: CalendarDay[][] = [];
-  for (const day of days) {
-    if (weeks.length === 0 || day.dayOfWeek === 1) weeks.push([]);
-    weeks.at(-1)?.push(day);
+  for (let index = 0; index < days.length; index += 7) {
+    weeks.push(days.slice(index, index + 7));
   }
 
   return (
