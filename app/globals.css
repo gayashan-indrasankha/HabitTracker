@@ -89,28 +89,12 @@
   }
 }
 
-.landing-page { position: relative; isolation: isolate; }
-.landing-glow { position: absolute; inset: -20% -18% auto auto; z-index: -1; height: 115%; width: 76%; background: radial-gradient(ellipse at 57% 42%, #e9efff 0, #f8faff 43%, transparent 74%); }
-.landing-dots { position: absolute; inset: 15% 0 0 auto; z-index: -1; width: 33%; opacity: .47; background-image: radial-gradient(#c6d3f2 1px, transparent 1px); background-size: 13px 13px; mask-image: linear-gradient(to left, black, transparent); }
-.preview-grid { display: grid; grid-template-columns: minmax(145px,1.8fr) 54px repeat(14,minmax(23px,1fr)); }
-.preview-card { min-width: 0; overflow: hidden; border: 1px solid #dce3ef; border-radius: 6px; background: #fff; box-shadow: 0 9px 24px rgba(16,38,91,.1); }
-.preview-band { background: #1043d6; padding: 8px 10px; text-align: center; color: white; font-size: 9px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: .025em; }
-.preview-donut { display: flex; height: 78px; width: 78px; align-items: center; justify-content: center; border-radius: 50%; background: conic-gradient(#1547d1 0 78%,#dbe5fb 78% 100%); }
 .analytics-card { overflow: hidden; border-color: #dce4f1; border-radius: 10px; box-shadow: 0 6px 20px rgba(15,43,96,.06); }
 .analytics-band { background: #1043d6; color: white; padding: 12px 16px; }
 .analytics-card [data-slot="card-header"] { background: #1043d6; color: white; padding: 13px 16px; }
 .analytics-card [data-slot="card-title"] { font-size: 12px; font-weight: 800; line-height: 1.1; text-transform: uppercase; letter-spacing: .035em; }
 .analytics-card [data-slot="card-content"] { padding: 16px; }
 
-@media (min-width: 1024px) {
-  .preview-tracker { transform: perspective(900px) rotateZ(1deg) rotateY(-3deg); transform-origin: top right; }
-  .preview-dashboard { transform: perspective(1100px) rotateZ(1deg); transform-origin: top left; }
-}
-@media (max-width: 767px) {
-  .landing-preview { overflow-x: auto; padding: 5px 0 12px; }
-  .preview-tracker, .preview-dashboard { min-width: 610px; }
-  .landing-glow { width: 130%; }
-}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
