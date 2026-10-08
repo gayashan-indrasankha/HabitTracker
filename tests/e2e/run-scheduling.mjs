@@ -38,7 +38,7 @@ try {
     NEXT_PUBLIC_APP_URL: 'http://localhost:3100',
     BETTER_AUTH_SECRET: 'isolated-scheduling-test-secret-123456789',
     HABITFLOW_E2E_ISOLATED: '1',
-    HABITFLOW_TEST_NOW: '2026-10-08T12:30:00Z',
+    HABITFLOW_TEST_NOW: process.env.HABITFLOW_TEST_NOW ?? '2026-10-08T12:30:00Z',
   };
   const code = await new Promise((resolve, reject) => {
     const child = spawn(
