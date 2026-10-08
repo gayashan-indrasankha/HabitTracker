@@ -22,6 +22,7 @@ export function ActionForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [previewState, setPreviewState] = useState<LifeActionState | null>(null);
   const [previewPending, setPreviewPending] = useState(false);
+  const [changedSinceSubmit, setChangedSinceSubmit] = useState(false);
   async function preview() {
     if (!previewAction || !formRef.current) return;
     if (!formRef.current.reportValidity()) return;
@@ -39,8 +40,14 @@ export function ActionForm({
       ref={formRef}
       action={formAction}
       className={className}
-      onChange={() => setPreviewState(null)}
-      onSubmit={() => setPreviewState(null)}
+      onChange={() => {
+        setPreviewState(null);
+        setChangedSinceSubmit(true);
+      }}
+      onSubmit={() => {
+        setPreviewState(null);
+        setChangedSinceSubmit(false);
+      }}
     >
       {children}
       {previewState?.error && (
@@ -53,12 +60,12 @@ export function ActionForm({
           {previewState.success}
         </p>
       )}
-      {state.error && (
+      {state.error && !changedSinceSubmit && !pending && (
         <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.error}
         </p>
       )}
-      {state.success && (
+      {state.success && !changedSinceSubmit && !pending && (
         <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">
           {state.success}
         </p>
