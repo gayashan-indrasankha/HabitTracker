@@ -10,7 +10,7 @@ test('concurrent overlapping schedule submissions commit only one block', async 
   await page.getByLabel('Password', { exact: true }).fill('Schedule-test-password-42');
   await page.getByLabel('Confirm password').fill('Schedule-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/, { timeout: 90_000 });
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   const other = await page.context().newPage();
   async function prepare(target: typeof page, title: string) {
     await target.goto('/week?date=2026-10-12');
@@ -72,7 +72,7 @@ test('recurrence history, premature completion, same-series collision, and resto
   await page.getByLabel('Password', { exact: true }).fill('Schedule-test-password-42');
   await page.getByLabel('Confirm password').fill('Schedule-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/, { timeout: 90_000 });
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
 
   await page.goto('/week?date=2026-10-05');
   const add = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add block' }) });
@@ -191,7 +191,7 @@ test('recurrence history, premature completion, same-series collision, and resto
     await otherPage.getByLabel('Password', { exact: true }).fill('Schedule-test-password-42');
     await otherPage.getByLabel('Confirm password').fill('Schedule-test-password-42');
     await otherPage.getByRole('button', { name: 'Create account' }).click();
-    await expect(otherPage).toHaveURL(/\/today/, { timeout: 90_000 });
+    await expect(otherPage).toHaveURL(/\/dashboard/, { timeout: 90_000 });
     await otherPage.goto('/week?date=2026-10-05');
     await expect(otherPage.getByText(name)).toHaveCount(0);
   } finally {

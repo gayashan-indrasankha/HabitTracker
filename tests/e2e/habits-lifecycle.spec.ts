@@ -14,7 +14,7 @@ test('habit editing, ordering, archive, and restore preserve completion history'
   await page.getByLabel('Password', { exact: true }).fill('Habit-release-password-42');
   await page.getByLabel('Confirm password').fill('Habit-release-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/);
+  await expect(page).toHaveURL(/\/dashboard/);
 
   for (const name of [first, second]) {
     await page.goto('/habits/new');

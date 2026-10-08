@@ -20,7 +20,7 @@ test('two browser sessions keep separate user identities', async ({ browser }) =
       await page.getByLabel('Password', { exact: true }).fill(password);
       await page.getByLabel('Confirm password').fill(password);
       await page.getByRole('button', { name: 'Create account' }).click();
-      await expect(page).toHaveURL(/\/today/);
+      await expect(page).toHaveURL(/\/dashboard/);
     }
 
     await firstPage.reload();
@@ -53,12 +53,22 @@ test('registration, persistent session, logout, login, and protected routes', as
   await page.getByRole('button', { name: 'Show password' }).click();
   await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'text');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/);
+  await expect(page).toHaveURL(/\/dashboard/);
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: /Good to see you/ })).toBeVisible();
-  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Habit tracker' }).first()).toBeVisible();
+  const navigation = page.getByRole('navigation', { name: 'Main navigation' });
+  await expect(navigation.getByRole('link').first()).toHaveText('Home');
+  await expect(navigation.getByRole('link', { name: 'Home' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/dashboard/);
+  await navigation.getByRole('link', { name: 'Today' }).click();
   await expect(page).toHaveURL(/\/today/);
+  await page.goto('/login');
+  await expect(page).toHaveURL(/\/dashboard/);
 
   await page.getByRole('button', { name: /Phase Two Tester/ }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();

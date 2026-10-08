@@ -15,7 +15,7 @@ test('goal and project edits, priority management, day modes, and mobile control
   await page.getByLabel('Password', { exact: true }).fill('Editing-test-password-42');
   await page.getByLabel('Confirm password').fill('Editing-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/, { timeout: 90_000 });
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   await page.goto('/goals');
 
   await page.getByText('Add a goal').click();
@@ -196,7 +196,7 @@ test('future weekday and metadata edits keep a completed earlier occurrence', as
   await page.getByLabel('Password', { exact: true }).fill('Editing-test-password-42');
   await page.getByLabel('Confirm password').fill('Editing-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/, { timeout: 90_000 });
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   await page.goto('/week?date=2026-10-05');
   const add = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add block' }) });
   await add.locator('[name="title"]').fill(title);
@@ -293,7 +293,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
     await target.getByLabel('Password', { exact: true }).fill('Editing-test-password-42');
     await target.getByLabel('Confirm password').fill('Editing-test-password-42');
     await target.getByRole('button', { name: 'Create account' }).click();
-    await expect(target).toHaveURL(/\/today/, { timeout: 90_000 });
+    await expect(target).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   }
   async function createRecords(target: typeof page, prefix: string) {
     await target.goto('/goals');

@@ -75,7 +75,7 @@ try {
       (cookie) => cookie.name === 'better-auth.session_token',
     ),
   );
-  await expect(window).toHaveURL(/\/today/, { timeout: 20_000 });
+  await expect(window).toHaveURL(/\/dashboard/, { timeout: 20_000 });
   const origin = new URL(window.url()).origin;
   assert.match(origin, /^http:\/\/127\.0\.0\.1:\d+$/);
   await window.goto(`${origin}/habits/new`);
@@ -120,12 +120,12 @@ try {
     timeout: 120_000,
   });
   window = await application.firstWindow({ timeout: 90_000 });
-  await window.waitForURL(/\/(today|login)(\?|$)/, { timeout: 90_000 });
+  await window.waitForURL(/\/(dashboard|login)(\?|$)/, { timeout: 90_000 });
   if (await window.getByRole('heading', { name: 'Log in to HabitFlow' }).isVisible()) {
     await window.getByLabel('Email address').fill(email);
     await window.getByLabel('Password', { exact: true }).fill(password);
     await window.getByRole('button', { name: 'Log in', exact: true }).click();
-    await expect(window).toHaveURL(/\/today/);
+    await expect(window).toHaveURL(/\/dashboard/);
   }
   const secondOrigin = new URL(window.url()).origin;
   for (const route of ['/api/health', '/api/export', '/habits']) {

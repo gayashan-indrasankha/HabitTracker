@@ -10,7 +10,7 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
   await page.getByLabel('Password', { exact: true }).fill('Planning-test-password-42');
   await page.getByLabel('Confirm password').fill('Planning-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/, { timeout: 90_000 });
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   await page.goto('/week?date=2026-10-05');
   await expect(page.getByRole('heading', { name: 'Weekly workload' })).toBeVisible();
   await expect(page.getByText('Not recorded')).toBeVisible();
@@ -156,7 +156,7 @@ test('planning settings and time-off edits stay within the signed-in account', a
     await target.getByLabel('Password', { exact: true }).fill('Planning-test-password-42');
     await target.getByLabel('Confirm password').fill('Planning-test-password-42');
     await target.getByRole('button', { name: 'Create account' }).click();
-    await expect(target).toHaveURL(/\/today/, { timeout: 90_000 });
+    await expect(target).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   }
   await register(page, 'P2 owner');
   await page.goto('/week?date=2026-10-05');

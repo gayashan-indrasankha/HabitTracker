@@ -126,7 +126,7 @@ async function main() {
         await page.getByLabel('Password', { exact: true }).fill('Browser-smoke-password-42');
         await page.getByLabel('Confirm password').fill('Browser-smoke-password-42');
         await page.getByRole('button', { name: 'Create account' }).click();
-        await expect(page).toHaveURL(/\/today/, { timeout: 20_000 });
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
         await page.goto(`${origin}/habits/new`);
         await page.getByLabel(/Habit Name/).fill(name);
         await page.getByLabel(/Monthly Target/).fill('1');

@@ -14,7 +14,7 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await page.getByLabel('Password', { exact: true }).fill('Tracker-test-password-42');
   await page.getByLabel('Confirm password').fill('Tracker-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/);
+  await expect(page).toHaveURL(/\/dashboard/);
 
   await page.goto('/habits/new');
   await page.getByLabel(/Habit Name/).fill(habitName);

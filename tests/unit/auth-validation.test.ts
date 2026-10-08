@@ -19,8 +19,9 @@ describe('authentication input', () => {
 
   it('only returns local application paths after login', () => {
     expect(safeNextPath('/habits?month=2026-10')).toBe('/habits?month=2026-10');
-    expect(safeNextPath('//evil.example')).toBe('/today');
-    expect(safeNextPath('/\\evil.example')).toBe('/today');
-    expect(safeNextPath('/login')).toBe('/today');
+    expect(safeNextPath(undefined)).toBe('/dashboard');
+    expect(safeNextPath('//evil.example')).toBe('/dashboard');
+    expect(safeNextPath('/\\evil.example')).toBe('/dashboard');
+    expect(safeNextPath('/login')).toBe('/dashboard');
   });
 });

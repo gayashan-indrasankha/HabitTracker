@@ -8,7 +8,7 @@ async function register(page: Page, prefix: string) {
   await page.getByLabel('Password', { exact: true }).fill('Evidence-test-password-42');
   await page.getByLabel('Confirm password').fill('Evidence-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/, { timeout: 90_000 });
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   return tag;
 }
 

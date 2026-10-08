@@ -10,7 +10,7 @@ async function register(page: Page, label: string) {
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Confirm password').fill(password);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/today/);
+  await expect(page).toHaveURL(/\/dashboard/);
   return { email, password, tag };
 }
 
@@ -42,7 +42,7 @@ test('invalid credentials and a cleared session cannot open private routes or ex
   ).toBeVisible();
   await page.getByLabel('Password', { exact: true }).fill(user.password);
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
-  await expect(page).toHaveURL(/\/today/);
+  await expect(page).toHaveURL(/\/dashboard/);
 });
 
 test('weekly review drafts, completion, history, and measured outcomes persist', async ({

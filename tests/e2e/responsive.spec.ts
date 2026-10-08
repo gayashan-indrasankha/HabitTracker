@@ -16,7 +16,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     await page.getByLabel('Password', { exact: true }).fill('Responsive-test-password-42');
     await page.getByLabel('Confirm password').fill('Responsive-test-password-42');
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page).toHaveURL(/\/today/);
+    await expect(page).toHaveURL(/\/dashboard/);
 
     const routes = [
       ['/today', /Today|Thursday/],
@@ -37,6 +37,9 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     const nav = page.getByRole('navigation', {
       name: width < 1024 ? 'Mobile navigation' : 'Main navigation',
     });
+    await expect(nav.getByRole('link').first()).toHaveText('Home');
+    await nav.getByRole('link', { name: 'Home' }).click();
+    await expect(page).toHaveURL(/\/dashboard/);
     await nav.getByRole('link', { name: 'Today' }).click();
     await expect(page).toHaveURL(/\/today/);
     await expect(nav.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
