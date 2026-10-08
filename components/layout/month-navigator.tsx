@@ -29,17 +29,18 @@ export function MonthNavigator({ currentMonth, timezone = 'UTC' }: MonthNavigato
   const isCurrentMonth = currentMonth === todayMonth;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <Button
         variant="outline"
         size="icon"
+        className="h-10 w-10 shrink-0"
         onClick={() => navigate(prevMonth(currentMonth))}
         aria-label="Previous month"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
-      <div className="min-w-[140px] text-center sm:min-w-[180px]">
+      <div className="min-w-[120px] text-center sm:min-w-[180px]">
         <span aria-live="polite" className="text-base font-semibold sm:text-lg">
           {formatMonthLabel(currentMonth)}
         </span>
@@ -48,6 +49,7 @@ export function MonthNavigator({ currentMonth, timezone = 'UTC' }: MonthNavigato
       <Button
         variant="outline"
         size="icon"
+        className="h-10 w-10 shrink-0"
         onClick={() => navigate(nextMonth(currentMonth))}
         aria-label="Next month"
       >
@@ -59,10 +61,11 @@ export function MonthNavigator({ currentMonth, timezone = 'UTC' }: MonthNavigato
         size="sm"
         onClick={() => navigate(todayMonth)}
         disabled={isCurrentMonth}
-        className="gap-1.5 text-muted-foreground"
+        className="min-h-10 gap-1 px-2 text-muted-foreground"
         aria-label="Current month"
       >
         <CalendarDays className="h-3.5 w-3.5" />
+        <span className="sm:hidden">Today</span>
         <span className="hidden sm:inline">Current month</span>
       </Button>
     </div>

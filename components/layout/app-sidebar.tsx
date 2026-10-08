@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -24,10 +25,24 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function MobileNav() {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!window.matchMedia('(max-width: 1023px)').matches) return;
+    navRef.current
+      ?.querySelector('[aria-current="page"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [pathname]);
+
   return (
     <nav
+      ref={navRef}
       aria-label="Mobile navigation"
       className="sticky top-16 z-30 flex gap-1 overflow-x-auto border-b bg-card p-2 lg:hidden"
     >
@@ -35,10 +50,10 @@ export function MobileNav() {
         <Link
           key={item.href}
           href={item.href}
-          aria-current={pathname === item.href ? 'page' : undefined}
+          aria-current={isActivePath(pathname, item.href) ? 'page' : undefined}
           className={cn(
             'flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
-            pathname === item.href
+            isActivePath(pathname, item.href)
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-accent',
           )}
@@ -71,9 +86,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 p-4" aria-label="Main navigation">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4" aria-label="Main navigation">
         {navigation.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isActive = isActivePath(pathname, item.href);
           return (
             <Link
               key={item.name}
