@@ -50,6 +50,55 @@
       "when": 1791448766950,
       "tag": "0006_magical_rogue",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791458806090,
+      "tag": "0007_cynical_dreadnoughts",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791461622124,
+      "tag": "0008_smart_the_fallen",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791467489816,
+      "tag": "0009_unusual_risque",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791468005222,
+      "tag": "0010_abandoned_random",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791470460922,
+      "tag": "0011_silent_blizzard",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791471900165,
+      "tag": "0012_worried_thundra",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791473109241,
+      "tag": "0013_fast_living_mummy",
+      "breakpoints": true
     }
   ]
 }
