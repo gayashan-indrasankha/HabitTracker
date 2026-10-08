@@ -26,6 +26,8 @@ import { setGoalArchiveAction, setProjectArchiveAction } from '@/lib/actions/lif
 import { WeightTrend } from '@/components/life/weight-trend';
 import { weightTrend } from '@/lib/evidence/summary';
 
+export const metadata = { title: 'Goals & Projects | HabitFlow' };
+
 const areas = [
   'University',
   'Career',
@@ -126,9 +128,11 @@ export default async function GoalsPage() {
                   )}
                 </li>
               ))}
-            {!goals.length && (
+            {!goals.some((goal) => !goal.archivedAt) && (
               <li className="text-sm text-muted-foreground">
-                No goals yet. Start with one meaningful outcome.
+                {goals.length
+                  ? 'No active goals. Add a goal or restore one from the archive.'
+                  : 'No goals yet. Start with one meaningful outcome.'}
               </li>
             )}
           </ul>
@@ -279,8 +283,12 @@ export default async function GoalsPage() {
                   </li>
                 );
               })}
-            {!projects.length && (
-              <li className="text-sm text-muted-foreground">No projects yet.</li>
+            {!projects.some((project) => !project.archivedAt) && (
+              <li className="text-sm text-muted-foreground">
+                {projects.length
+                  ? 'No active projects. Create one or restore one from the archive.'
+                  : 'No projects yet. Create one to connect your work to a goal.'}
+              </li>
             )}
           </ul>
           {projects.some((project) => project.archivedAt) && (
@@ -384,7 +392,11 @@ export default async function GoalsPage() {
         </p>
         <ul className="grid gap-2 md:grid-cols-2">
           {tasks.map((task) => (
-            <li id={`task-${task.id}`} key={task.id} className="rounded-xl border p-3">
+            <li
+              id={`task-${task.id}`}
+              key={task.id}
+              className="scroll-mt-32 rounded-xl border p-3 lg:scroll-mt-20"
+            >
               <p className="text-xs text-muted-foreground">
                 {task.area}
                 {task.projectId
