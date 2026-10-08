@@ -10,6 +10,7 @@ interface CompletionDonutProps {
 
 export function CompletionDonut({ stats }: CompletionDonutProps) {
   const remaining = Math.max(0, stats.total - stats.completed);
+  const remainingRate = 100 - stats.rate;
   const data = [
     { name: 'Completed', value: stats.completed },
     { name: 'Remaining', value: remaining },
@@ -21,7 +22,7 @@ export function CompletionDonut({ stats }: CompletionDonutProps) {
     return (
       <Card className="analytics-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Fixed-schedule adherence</CardTitle>
+          <CardTitle className="text-sm font-medium">Completion overview</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-6">
           <p className="text-sm text-muted-foreground">No data yet</p>
@@ -33,19 +34,28 @@ export function CompletionDonut({ stats }: CompletionDonutProps) {
   return (
     <Card className="analytics-card">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Fixed-schedule adherence</CardTitle>
+        <CardTitle className="text-sm font-medium">Completion overview</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="relative h-48">
+      <CardContent className="grid grid-cols-[minmax(0,1fr)_minmax(76px,34%)_minmax(0,1fr)] items-center gap-1 text-center">
+        <div className="min-w-0">
+          <strong className="block text-base font-bold tabular-nums text-primary">
+            {stats.rate}%
+          </strong>
+          <span className="block text-[10px] leading-tight text-muted-foreground">Completed</span>
+        </div>
+        <div
+          role="img"
+          aria-label={`${stats.rate}% completed and ${remainingRate}% remaining; ${stats.completed} of ${stats.total} fixed scheduled occurrences completed`}
+          className="h-32 min-w-0"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={46}
-                outerRadius={66}
-                paddingAngle={2}
+                innerRadius="60%"
+                outerRadius="88%"
                 dataKey="value"
                 stroke="none"
                 startAngle={90}
@@ -66,13 +76,10 @@ export function CompletionDonut({ stats }: CompletionDonutProps) {
               />
             </PieChart>
           </ResponsiveContainer>
-          {/* Center label overlay */}
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold">{stats.rate}%</span>
-            <span className="text-xs text-muted-foreground">
-              {stats.completed}/{stats.total}
-            </span>
-          </div>
+        </div>
+        <div className="min-w-0">
+          <strong className="block text-base font-bold tabular-nums">{remainingRate}%</strong>
+          <span className="block text-[10px] leading-tight text-muted-foreground">Remaining</span>
         </div>
       </CardContent>
     </Card>
