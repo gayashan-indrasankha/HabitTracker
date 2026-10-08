@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireUser } from '@/lib/auth/session';
 import {
   getAssessments,
@@ -17,11 +18,13 @@ import {
   editTaskAction,
   saveSubjectAction,
   updateAssessmentAction,
-  updateGoalStatusAction,
-  updateProjectStatusAction,
   updateTaskAction,
 } from '@/lib/actions/life-actions';
 import { ActionForm } from '@/components/life/action-form';
+import { EditGoalForm, EditProjectForm } from '@/components/life/entity-edit-forms';
+import { setGoalArchiveAction, setProjectArchiveAction } from '@/lib/actions/life-actions';
+import { WeightTrend } from '@/components/life/weight-trend';
+import { weightTrend } from '@/lib/evidence/summary';
 
 const areas = [
   'University',
@@ -55,61 +58,103 @@ export default async function GoalsPage() {
         <p className="text-sm text-muted-foreground">
           Adherence, finished work, and real outcomes stay separate.
         </p>
+        <Link
+          href="/goals/evidence"
+          className="mt-2 inline-block text-sm font-semibold text-primary underline"
+        >
+          Open evidence & career readiness
+        </Link>
       </header>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="text-xl font-bold">Goals</h2>
           <ul className="mt-3 space-y-2">
-            {goals.map((goal) => (
-              <li key={goal.id} className="rounded-xl border p-3">
-                <p className="text-xs font-semibold text-primary">{goal.area}</p>
-                <h3 className="font-semibold">{goal.title}</h3>
-                {goal.description && (
-                  <p className="text-sm text-muted-foreground">{goal.description}</p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {goal.status}
-                  {goal.targetDate ? ` · Target ${goal.targetDate}` : ''}
-                  {goal.targetValue != null
-                    ? ` · ${goal.targetValue} ${goal.targetUnit ?? ''}`
-                    : ''}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {tasks.filter((task) => task.goalId === goal.id && task.status === 'done').length}{' '}
-                  related tasks finished
-                  {goal.targetUnit === 'kg' &&
-                  metrics.find((metric) => metric.type === 'Body weight' && metric.unit === 'kg')
-                    ? ` · Latest recorded weight ${metrics.find((metric) => metric.type === 'Body weight' && metric.unit === 'kg')!.value} kg`
-                    : ''}
-                </p>
-                <ActionForm
-                  action={updateGoalStatusAction}
-                  submitLabel="Update goal"
-                  className="mt-2 flex flex-wrap items-center gap-2"
-                >
-                  <input type="hidden" name="id" value={goal.id} />
-                  <label className="text-xs">
-                    Status{' '}
-                    <select
-                      name="status"
-                      defaultValue={goal.status}
-                      className="ml-1 min-h-10 rounded-lg border bg-background px-2"
-                    >
-                      <option value="active">Active</option>
-                      <option value="paused">Paused</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </label>
-                </ActionForm>
-              </li>
-            ))}
+            {goals
+              .filter((goal) => !goal.archivedAt)
+              .map((goal) => (
+                <li key={goal.id} className="rounded-xl border p-3">
+                  <p className="text-xs font-semibold text-primary">{goal.area}</p>
+                  <h3 className="font-semibold">{goal.title}</h3>
+                  {goal.description && (
+                    <p className="text-sm text-muted-foreground">{goal.description}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {goal.status}
+                    {goal.targetDate ? ` · Target ${goal.targetDate}` : ''}
+                    {goal.targetValue != null
+                      ? ` · ${goal.targetValue} ${goal.targetUnit ?? ''}`
+                      : ''}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {
+                      tasks.filter((task) => task.goalId === goal.id && task.status === 'done')
+                        .length
+                    }{' '}
+                    related tasks finished
+                    {goal.targetUnit === 'kg' &&
+                    metrics.find((metric) => metric.type === 'Body weight' && metric.unit === 'kg')
+                      ? ` · Latest recorded weight ${metrics.find((metric) => metric.type === 'Body weight' && metric.unit === 'kg')!.value} kg`
+                      : ''}
+                  </p>
+                  <EditGoalForm goal={goal} />
+                  {goal.area === 'Fitness' && goal.targetUnit === 'kg' && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-sm text-primary">
+                        Body-weight trend
+                      </summary>
+                      <WeightTrend
+                        points={
+                          weightTrend(
+                            metrics
+                              .filter(
+                                (metric) => metric.type === 'Body weight' && metric.unit === 'kg',
+                              )
+                              .map((metric) => ({ date: metric.date, value: metric.value })),
+                            settings.weekStartsOn,
+                            goal.targetValue,
+                          ).daily
+                        }
+                        target={goal.targetValue}
+                      />
+                      <Link
+                        href="/goals/evidence#weight"
+                        className="text-sm text-primary underline"
+                      >
+                        Manage measurements
+                      </Link>
+                    </details>
+                  )}
+                </li>
+              ))}
             {!goals.length && (
               <li className="text-sm text-muted-foreground">
                 No goals yet. Start with one meaningful outcome.
               </li>
             )}
           </ul>
+          {goals.some((goal) => goal.archivedAt) && (
+            <details className="mt-4">
+              <summary className="cursor-pointer font-semibold text-primary">
+                Archived goals
+              </summary>
+              <ul className="mt-2 space-y-2">
+                {goals
+                  .filter((goal) => goal.archivedAt)
+                  .map((goal) => (
+                    <li key={goal.id} className="rounded-xl border p-3 text-sm">
+                      <strong>{goal.title}</strong>
+                      <p className="text-muted-foreground">
+                        {goal.area} · {goal.status}
+                      </p>
+                      <ActionForm action={setGoalArchiveAction} submitLabel="Restore goal">
+                        <input type="hidden" name="id" value={goal.id} />
+                        <input type="hidden" name="archive" value="no" />
+                      </ActionForm>
+                    </li>
+                  ))}
+              </ul>
+            </details>
+          )}
           <details className="mt-4">
             <summary className="cursor-pointer font-semibold text-primary">Add a goal</summary>
             <ActionForm
@@ -194,61 +239,73 @@ export default async function GoalsPage() {
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="text-xl font-bold">Projects</h2>
           <ul className="mt-3 space-y-2">
-            {projects.map((project) => {
-              const linked = tasks.filter((task) => task.projectId === project.id);
-              const milestones = linked.filter((task) => task.isMilestone);
-              const next = linked.find(
-                (task) => task.status !== 'done' && task.status !== 'cancelled',
-              );
-              return (
-                <li key={project.id} className="rounded-xl border p-3">
-                  <p className="text-xs font-semibold text-primary">{project.type}</p>
-                  <h3 className="font-semibold">{project.name}</h3>
-                  {project.description && (
-                    <p className="text-sm text-muted-foreground">{project.description}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {milestones.filter((task) => task.status === 'done').length} of{' '}
-                    {milestones.length} milestones complete
-                  </p>
-                  <p className="mt-1 text-sm">Next: {next?.title ?? 'Add an actionable task'}</p>
-                  {project.repositoryUrl && (
-                    <a
-                      href={project.repositoryUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary underline"
-                    >
-                      Repository
-                    </a>
-                  )}
-                  <ActionForm
-                    action={updateProjectStatusAction}
-                    submitLabel="Update project"
-                    className="mt-2 flex flex-wrap items-center gap-2"
-                  >
-                    <input type="hidden" name="id" value={project.id} />
-                    <label className="text-xs">
-                      Status{' '}
-                      <select
-                        name="status"
-                        defaultValue={project.status}
-                        className="ml-1 min-h-10 rounded-lg border bg-background px-2"
+            {projects
+              .filter((project) => !project.archivedAt)
+              .map((project) => {
+                const linked = tasks.filter((task) => task.projectId === project.id);
+                const milestones = linked.filter((task) => task.isMilestone);
+                const next = linked.find(
+                  (task) => task.status !== 'done' && task.status !== 'cancelled',
+                );
+                return (
+                  <li key={project.id} className="rounded-xl border p-3">
+                    <p className="text-xs font-semibold text-primary">{project.type}</p>
+                    <h3 className="font-semibold">{project.name}</h3>
+                    {project.description && (
+                      <p className="text-sm text-muted-foreground">{project.description}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {milestones.filter((task) => task.status === 'done').length} of{' '}
+                      {milestones.length} milestones complete
+                    </p>
+                    <p className="mt-1 text-sm">Next: {next?.title ?? 'Add an actionable task'}</p>
+                    {project.repositoryUrl && (
+                      <a
+                        href={project.repositoryUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary underline"
                       >
-                        <option value="active">Active</option>
-                        <option value="paused">Paused</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </label>
-                  </ActionForm>
-                </li>
-              );
-            })}
+                        Repository
+                      </a>
+                    )}
+                    <EditProjectForm project={project} goals={goals} />
+                    <Link
+                      href="/goals/evidence#portfolio"
+                      className="mt-2 block text-sm text-primary underline"
+                    >
+                      Review milestone quality
+                    </Link>
+                  </li>
+                );
+              })}
             {!projects.length && (
               <li className="text-sm text-muted-foreground">No projects yet.</li>
             )}
           </ul>
+          {projects.some((project) => project.archivedAt) && (
+            <details className="mt-4">
+              <summary className="cursor-pointer font-semibold text-primary">
+                Archived projects
+              </summary>
+              <ul className="mt-2 space-y-2">
+                {projects
+                  .filter((project) => project.archivedAt)
+                  .map((project) => (
+                    <li key={project.id} className="rounded-xl border p-3 text-sm">
+                      <strong>{project.name}</strong>
+                      <p className="text-muted-foreground">
+                        {project.type} · {project.status}
+                      </p>
+                      <ActionForm action={setProjectArchiveAction} submitLabel="Restore project">
+                        <input type="hidden" name="id" value={project.id} />
+                        <input type="hidden" name="archive" value="no" />
+                      </ActionForm>
+                    </li>
+                  ))}
+              </ul>
+            </details>
+          )}
           <details className="mt-4">
             <summary className="cursor-pointer font-semibold text-primary">Add a project</summary>
             <ActionForm
