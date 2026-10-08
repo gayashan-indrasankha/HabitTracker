@@ -38,14 +38,20 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await page.reload();
   await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 1');
 
-  for (const [month, count] of [
-    ['2025-02', 28],
-    ['2024-02', 29],
-    ['2026-04', 30],
-    ['2026-10', 31],
+  for (const [month, count, weekLengths] of [
+    ['2025-02', 28, [7, 7, 7, 7]],
+    ['2024-02', 29, [7, 7, 7, 7, 1]],
+    ['2026-04', 30, [7, 7, 7, 7, 2]],
+    ['2026-10', 31, [7, 7, 7, 7, 3]],
   ] as const) {
     await page.goto(`/dashboard?month=${month}`);
     await expect(page.locator('thead th[title]')).toHaveCount(count);
+    const weekHeaders = page.locator('thead th[scope="colgroup"]');
+    await expect(weekHeaders).toHaveCount(weekLengths.length);
+    for (const [index, length] of weekLengths.entries()) {
+      await expect(weekHeaders.nth(index)).toHaveText(`Week ${index + 1}`);
+      await expect(weekHeaders.nth(index)).toHaveAttribute('colspan', String(length));
+    }
   }
   await page.getByRole('button', { name: 'Previous month' }).click();
   await expect(page).toHaveURL(/month=2026-09/);
