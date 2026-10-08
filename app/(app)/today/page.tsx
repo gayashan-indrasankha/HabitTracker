@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
-import { getTasks, getDayPlan, getBlocksForRange } from '@/lib/dal/life';
+import { getTasks, getDayPlan, getBlocksForRange, getProjects } from '@/lib/dal/life';
 import { getActiveHabitsByUser } from '@/lib/dal/habits';
 import { getEntriesByUserAndDateRange } from '@/lib/dal/habit-entries';
 import { getNoteByUserAndDate } from '@/lib/dal/notes';
@@ -15,15 +15,15 @@ import {
   weeklyQuotaAttainment,
 } from '@/lib/analytics/habit-month-progress';
 import { addCalendarDays, expandBlocks } from '@/lib/planning/time-blocks';
-import {
-  selectPriorityAction,
-  setDayModeAction,
-  updateOccurrenceAction,
-  updateTaskAction,
-} from '@/lib/actions/life-actions';
+import { setDayModeAction, updateOccurrenceAction } from '@/lib/actions/life-actions';
 import { ActionForm } from '@/components/life/action-form';
+import { PriorityPanel } from '@/components/life/priority-panel';
+import { saveMinimumAction } from '@/lib/actions/planning-actions';
 import { TodayHabit } from '@/components/life/today-habit';
 import { DailyNoteEditor } from '@/components/notes/daily-note-editor';
+import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { internshipApplications, subjectTopics } from '@/lib/db/schema';
 
 export default async function TodayPage() {
   const user = await requireUser();
@@ -31,14 +31,34 @@ export default async function TodayPage() {
   const now = getTodayInTimezone(settings.timezone);
   const date = toDateString(now);
   const start = weekStart(date, settings.weekStartsOn);
-  const [allTasks, dayPlan, blockData, habits, entries, note] = await Promise.all([
-    getTasks(user.id),
-    getDayPlan(user.id, date),
-    getBlocksForRange(user.id, date, date),
-    getActiveHabitsByUser(user.id),
-    getEntriesByUserAndDateRange(user.id, start, addCalendarDays(start, 6)),
-    getNoteByUserAndDate(user.id, date),
-  ]);
+  const [allTasks, dayPlan, blockData, habits, entries, note, projects, followUps, revisionsDue] =
+    await Promise.all([
+      getTasks(user.id),
+      getDayPlan(user.id, date),
+      getBlocksForRange(user.id, date, date),
+      getActiveHabitsByUser(user.id),
+      getEntriesByUserAndDateRange(user.id, start, addCalendarDays(start, 6)),
+      getNoteByUserAndDate(user.id, date),
+      getProjects(user.id),
+      db
+        .select()
+        .from(internshipApplications)
+        .where(
+          and(
+            eq(internshipApplications.userId, user.id),
+            lte(internshipApplications.followUpDate, date),
+            notInArray(internshipApplications.stage, ['saved', 'rejected', 'withdrawn', 'offer']),
+          ),
+        )
+        .orderBy(asc(internshipApplications.followUpDate))
+        .limit(1),
+      db
+        .select()
+        .from(subjectTopics)
+        .where(and(eq(subjectTopics.userId, user.id), lte(subjectTopics.nextRevisionDate, date)))
+        .orderBy(asc(subjectTopics.nextRevisionDate))
+        .limit(1),
+    ]);
   const mode = dayPlan?.mode ?? 'normal';
   const selected = allTasks
     .filter((task) => task.scheduledDate === date && task.dailyPriority)
@@ -56,13 +76,40 @@ export default async function TodayPage() {
       task.status !== 'cancelled' &&
       !selected.some((item) => item.id === task.id),
   );
-  const occurrences = expandBlocks(blockData.rules, blockData.exceptions, date, date);
+  const backlogChoices = backlog.map((task) => ({
+    id: task.id,
+    title: task.title,
+    area: task.area,
+    projectId: task.projectId,
+    projectName: projects.find((project) => project.id === task.projectId)?.name ?? null,
+    dueDate: task.dueDate,
+    scheduledDate: task.scheduledDate,
+  }));
+  const occurrences = expandBlocks(
+    blockData.rules,
+    blockData.exceptions,
+    date,
+    date,
+    blockData.revisions,
+  );
   const visibleBlocks =
     mode === 'normal'
       ? occurrences
       : occurrences
           .filter((item) => item.isFixed)
           .concat(occurrences.filter((item) => !item.isFixed).slice(0, mode === 'reduced' ? 2 : 1));
+  const hiddenBlocks = occurrences.filter(
+    (item) =>
+      !visibleBlocks.some(
+        (visible) => visible.id === item.id && visible.originalDate === item.originalDate,
+      ),
+  );
+  const urgentTasks = allTasks.filter(
+    (task) =>
+      task.dueDate &&
+      task.dueDate <= addCalendarDays(date, 1) &&
+      !['done', 'cancelled'].includes(task.status),
+  );
   const completionSet = new Set(
     entries.filter((item) => item.completed).map((item) => `${item.habitId}:${item.date}`),
   );
@@ -78,7 +125,7 @@ export default async function TodayPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
-            Today · {settings.timezone}
+            Today Â· {settings.timezone}
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">
             Good to see you, {user.name?.split(' ')[0] ?? 'friend'}.
@@ -92,6 +139,29 @@ export default async function TodayPage() {
           priorities complete
         </div>
       </header>
+      {(followUps.length > 0 || revisionsDue.length > 0) && (
+        <section className="rounded-2xl border bg-card p-4 text-sm">
+          <h2 className="font-semibold">Worth following up</h2>
+          <ul className="mt-1 list-inside list-disc">
+            {followUps.map((item) => (
+              <li key={item.id}>
+                <Link href="/goals/evidence#applications" className="text-primary underline">
+                  {item.company} follow-up
+                </Link>{' '}
+                · {item.followUpDate}
+              </li>
+            ))}
+            {revisionsDue.map((item) => (
+              <li key={item.id}>
+                <Link href="/goals/evidence#university" className="text-primary underline">
+                  Revise {item.title}
+                </Link>{' '}
+                · {item.nextRevisionDate}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section className="rounded-2xl border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -143,127 +213,83 @@ export default async function TodayPage() {
             Protect essential commitments, sleep, and recovery. One small next action is enough.
           </p>
         )}
+        {mode !== 'normal' && (
+          <div className="mt-3 rounded-xl border p-3 text-sm">
+            <h3 className="font-semibold">Small next action</h3>
+            <p className="text-xs text-muted-foreground">
+              Choose an optional smaller version of a habit, such as two pages of reading. Recording
+              it does not mark the full habit complete.
+            </p>
+            <ActionForm
+              action={saveMinimumAction}
+              submitLabel="Save small action"
+              className="mt-2 grid gap-2 sm:grid-cols-2"
+            >
+              <input type="hidden" name="date" value={date} />
+              <label>
+                Habit (optional)
+                <select
+                  name="habitId"
+                  defaultValue={dayPlan?.minimumHabitId ?? ''}
+                  className="mt-1 min-h-10 w-full rounded-lg border bg-background px-2"
+                >
+                  <option value="">General action</option>
+                  {habits.map((habit) => (
+                    <option key={habit.id} value={habit.id}>
+                      {habit.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Small action
+                <input
+                  name="action"
+                  maxLength={160}
+                  defaultValue={dayPlan?.minimumAction ?? ''}
+                  placeholder="Read two pages"
+                  className="mt-1 min-h-10 w-full rounded-lg border bg-background px-2"
+                />
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="done"
+                  value="yes"
+                  defaultChecked={dayPlan?.minimumActionDone ?? false}
+                />{' '}
+                I did this smaller action
+              </label>
+            </ActionForm>
+            {dayPlan?.minimumActionDone && (
+              <p className="mt-2 text-emerald-700 dark:text-emerald-300">
+                Smaller action recorded. Full habit completion remains separate.
+              </p>
+            )}
+          </div>
+        )}
+        {mode !== 'normal' && urgentTasks.length > 0 && (
+          <div className="mt-3 rounded-xl border border-amber-500/50 p-3 text-sm">
+            <h3 className="font-semibold">Due today or tomorrow</h3>
+            <ul className="mt-1 list-inside list-disc">
+              {urgentTasks.map((task) => (
+                <li key={task.id}>
+                  <Link href={`/goals#task-${task.id}`} className="text-primary underline">
+                    {task.title}
+                  </Link>{' '}
+                  · {task.dueDate}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,1fr)]">
         <div className="space-y-6">
+          <PriorityPanel date={date} mode={mode} selected={selected} choices={backlogChoices} />
           <section className="rounded-2xl border bg-card p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Today’s three wins</h2>
-              <Link href="/goals" className="text-sm font-medium text-primary hover:underline">
-                Manage tasks
-              </Link>
-            </div>
-            {visiblePriorities.length ? (
-              <ol className="space-y-3">
-                {visiblePriorities.map((task) => (
-                  <li key={task.id} className="rounded-xl border p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          {task.area}{' '}
-                          {task.estimatedMinutes ? `· ${task.estimatedMinutes} min` : ''}
-                        </p>
-                        <h3 className="font-semibold">{task.title}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          {task.status.replace('_', ' ')}
-                        </p>
-                        <Link
-                          href={`/goals#task-${task.id}`}
-                          className="text-xs font-medium text-primary underline"
-                        >
-                          Edit task
-                        </Link>
-                      </div>
-                      <ActionForm
-                        action={updateTaskAction}
-                        submitLabel={task.status === 'done' ? 'Reopen' : 'Complete'}
-                        className="flex flex-col gap-1"
-                      >
-                        <input type="hidden" name="id" value={task.id} />
-                        <input
-                          type="hidden"
-                          name="status"
-                          value={task.status === 'done' ? 'todo' : 'done'}
-                        />
-                      </ActionForm>
-                    </div>
-                    <details className="mt-2 text-sm">
-                      <summary className="cursor-pointer text-primary">
-                        Reschedule or reorder
-                      </summary>
-                      <ActionForm
-                        action={updateTaskAction}
-                        submitLabel="Reschedule"
-                        className="mt-2 flex flex-wrap items-end gap-2"
-                      >
-                        <input type="hidden" name="id" value={task.id} />
-                        <input type="hidden" name="status" value={task.status} />
-                        <label className="text-xs">
-                          New date{' '}
-                          <input
-                            type="date"
-                            name="scheduledDate"
-                            required
-                            defaultValue={date}
-                            className="block min-h-10 rounded-lg border bg-background px-2"
-                          />
-                        </label>
-                      </ActionForm>
-                      <ActionForm
-                        action={selectPriorityAction}
-                        submitLabel="Move"
-                        className="mt-2 flex items-center gap-2"
-                      >
-                        <input type="hidden" name="id" value={task.id} />
-                        <input type="hidden" name="date" value={date} />
-                        <label className="text-xs">
-                          Priority{' '}
-                          <select
-                            name="rank"
-                            defaultValue={task.dailyPriority ?? 1}
-                            className="ml-2 min-h-10 rounded-lg border bg-background px-2"
-                          >
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                          </select>
-                        </label>
-                      </ActionForm>
-                    </details>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Choose up to three tasks from your backlog. A clear next action is enough to begin.
-              </p>
-            )}
-            {selected.length < 3 && backlog.length > 0 && (
-              <div className="mt-4 border-t pt-4">
-                <h3 className="mb-2 text-sm font-semibold">Choose from backlog</h3>
-                <div className="space-y-2">
-                  {backlog.slice(0, 8).map((task) => (
-                    <ActionForm
-                      key={task.id}
-                      action={selectPriorityAction}
-                      submitLabel="Add to today"
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 text-sm"
-                    >
-                      <input type="hidden" name="id" value={task.id} />
-                      <input type="hidden" name="date" value={date} />
-                      <input type="hidden" name="rank" value={selected.length + 1} />
-                      <span>
-                        {task.title} <span className="text-muted-foreground">· {task.area}</span>
-                      </span>
-                    </ActionForm>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-          <section className="rounded-2xl border bg-card p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Today’s schedule</h2>
+              <h2 className="text-xl font-bold">Todayâ€™s schedule</h2>
               <Link href="/week" className="text-sm font-medium text-primary hover:underline">
                 Open week
               </Link>
@@ -275,12 +301,12 @@ export default async function TodayPage() {
                     <div className="flex flex-wrap justify-between gap-3">
                       <div>
                         <p className="text-xs font-semibold text-primary">
-                          {block.localStartTime}–{block.localEndTime} · {block.category}
+                          {block.localStartTime}â€“{block.localEndTime} Â· {block.category}
                         </p>
                         <h3 className="font-semibold">
                           {block.title}{' '}
                           {block.isFixed && (
-                            <span className="text-xs text-muted-foreground">· Fixed</span>
+                            <span className="text-xs text-muted-foreground">Â· Fixed</span>
                           )}
                         </h3>
                         <p className="text-xs text-muted-foreground">{block.occurrenceStatus}</p>
@@ -294,20 +320,32 @@ export default async function TodayPage() {
                         )}
                       </div>
                       <div className="flex gap-2">
-                        {(['started', 'completed'] as const).map((status) => (
-                          <ActionForm
-                            key={status}
-                            action={updateOccurrenceAction}
-                            submitLabel={status === 'started' ? 'Start' : 'Complete'}
-                          >
+                        {block.occurrenceStatus === 'skipped' ? (
+                          <ActionForm action={updateOccurrenceAction} submitLabel="Restore">
                             <input type="hidden" name="blockId" value={block.id} />
                             <input type="hidden" name="occurrenceDate" value={block.originalDate} />
-                            <input type="hidden" name="status" value={status} />
+                            <input type="hidden" name="status" value="planned" />
                           </ActionForm>
-                        ))}
+                        ) : (
+                          (['started', 'completed'] as const).map((status) => (
+                            <ActionForm
+                              key={status}
+                              action={updateOccurrenceAction}
+                              submitLabel={status === 'started' ? 'Start' : 'Complete'}
+                            >
+                              <input type="hidden" name="blockId" value={block.id} />
+                              <input
+                                type="hidden"
+                                name="occurrenceDate"
+                                value={block.originalDate}
+                              />
+                              <input type="hidden" name="status" value={status} />
+                            </ActionForm>
+                          ))
+                        )}
                       </div>
                     </div>
-                    {!block.isFixed && (
+                    {!block.isFixed && block.occurrenceStatus !== 'skipped' && (
                       <details className="mt-2 text-sm">
                         <summary className="cursor-pointer text-primary">
                           Skip or reschedule
@@ -378,6 +416,27 @@ export default async function TodayPage() {
                 </Link>{' '}
                 when you are ready.
               </p>
+            )}
+            {mode !== 'normal' && hiddenBlocks.length > 0 && (
+              <details className="mt-3 rounded-xl border p-3 text-sm">
+                <summary className="min-h-10 cursor-pointer py-2 font-semibold text-primary">
+                  Show full schedule ({hiddenBlocks.length} de-emphasized)
+                </summary>
+                <ul className="mt-2 space-y-1">
+                  {hiddenBlocks.map((block) => (
+                    <li key={`${block.id}:${block.originalDate}`}>
+                      {block.localStartTime}–{block.localEndTime} · {block.title} ·{' '}
+                      {block.occurrenceStatus}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  These sessions remain planned. Use Week to adjust them explicitly.
+                </p>
+                <Link href="/week" className="text-primary underline">
+                  Open week
+                </Link>
+              </details>
             )}
           </section>
         </div>
