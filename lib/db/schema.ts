@@ -29,6 +29,28 @@ export const users = pgTable('user', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Keeps an installation decision after a user deletes a seeded record. Reapplying
+// the preset must never silently recreate that record.
+export const lifeOsSeedItems = pgTable(
+  'life_os_seed_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    itemType: varchar('item_type', { length: 32 }).notNull(),
+    templateKey: varchar('template_key', { length: 100 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('life_os_seed_items_user_type_key_idx').on(
+      table.userId,
+      table.itemType,
+      table.templateKey,
+    ),
+  ],
+);
+
 export const sessions = pgTable(
   'session',
   {
@@ -190,6 +212,7 @@ export const mealTemplates = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 100 }).notNull(),
+    templateKey: varchar('template_key', { length: 100 }),
     notes: text('notes'),
     preferredTime: varchar('preferred_time', { length: 5 }),
     plannedCalories: integer('planned_calories'),
@@ -202,6 +225,7 @@ export const mealTemplates = pgTable(
   (table) => [
     index('meal_templates_user_sort_idx').on(table.userId, table.sortOrder),
     unique('meal_templates_user_id_id_unique').on(table.userId, table.id),
+    uniqueIndex('meal_templates_user_template_idx').on(table.userId, table.templateKey),
   ],
 );
 
@@ -340,6 +364,7 @@ export const tasks = pgTable(
     goalId: uuid('goal_id'),
     projectId: uuid('project_id'),
     title: varchar('title', { length: 160 }).notNull(),
+    templateKey: varchar('template_key', { length: 100 }),
     details: text('details'),
     area: varchar('area', { length: 80 }).notNull().default('Personal Development'),
     status: varchar('status', { length: 20 }).notNull().default('todo'),
@@ -360,6 +385,7 @@ export const tasks = pgTable(
     index('tasks_user_project_idx').on(t.userId, t.projectId),
     uniqueIndex('tasks_user_date_priority_unique').on(t.userId, t.scheduledDate, t.dailyPriority),
     unique('tasks_user_id_id_unique').on(t.userId, t.id),
+    uniqueIndex('tasks_user_template_idx').on(t.userId, t.templateKey),
     foreignKey({
       columns: [t.userId, t.goalId],
       foreignColumns: [goals.userId, goals.id],
@@ -760,11 +786,13 @@ export const interviewTopics = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     category: varchar('category', { length: 80 }).notNull(),
     title: varchar('title', { length: 160 }).notNull(),
+    templateKey: varchar('template_key', { length: 100 }),
     roleTrack: varchar('role_track', { length: 16 }).notNull().default('Shared'),
   },
   (t) => [
     index('interview_topics_user_role_idx').on(t.userId, t.roleTrack),
     unique('interview_topics_user_id_id_unique').on(t.userId, t.id),
+    uniqueIndex('interview_topics_user_template_idx').on(t.userId, t.templateKey),
   ],
 );
 
