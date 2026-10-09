@@ -32,6 +32,10 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       HABITFLOW_TEST_ADMIN_URL: postgresql://habitflow_ci:habitflow_ci_only@127.0.0.1:5432/habitflow_ci
+      DATABASE_URL: postgresql://habitflow_ci:habitflow_ci_only@127.0.0.1:5432/habitflow_ci
+      BETTER_AUTH_SECRET: ci-only-build-secret-never-used-outside-tests
+      BETTER_AUTH_URL: http://localhost:3100
+      NEXT_PUBLIC_APP_URL: http://localhost:3100
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

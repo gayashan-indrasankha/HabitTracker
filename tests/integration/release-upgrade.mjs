@@ -11,12 +11,12 @@ import { drizzle as postgresDrizzle } from 'drizzle-orm/postgres-js';
 import { migrate as postgresMigrate } from 'drizzle-orm/postgres-js/migrator';
 
 const folder = 'lib/db/migrations';
-const boundaries = [2, 6, 7, 8, 10, 12];
+const boundaries = [2, 6, 7, 8, 10, 12, 13];
 const fullJournal = JSON.parse(await readFile(join(folder, 'meta', '_journal.json'), 'utf8'));
 const files = await readdir(folder);
 assert.equal(
   fullJournal.entries.length,
-  14,
+  15,
   'Review the fixture boundaries when migrations change.',
 );
 for (const [index, entry] of fullJournal.entries.entries()) {

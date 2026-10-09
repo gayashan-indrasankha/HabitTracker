@@ -18,6 +18,11 @@ jobs:
   portable:
     runs-on: windows-latest
     timeout-minutes: 40
+    env:
+      DATABASE_URL: postgresql://127.0.0.1:1/ci-build-placeholder
+      BETTER_AUTH_SECRET: ci-only-build-secret-never-used-outside-tests
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
