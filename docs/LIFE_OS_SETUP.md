@@ -1,6 +1,6 @@
-﻿# Personal Life OS setup
+# Personal LifeOS setup
 
-Open **Settings > Set up my Life OS**. Choose whole sections, adjust lecture and nutrition planning references, and select **Preview changes**. The preview reads only the signed-in account. It groups goals, projects, tasks, subjects, habits, interview topics, meal templates and recurring sessions by life area and labels new, existing, archived, previously removed, duplicate and conflicting records. Confirm to install the new items in one transaction. Nothing is installed on registration or by merely opening the page.
+Open **Settings > Set up my LifeOS**. Choose whole sections, adjust lecture and nutrition planning references, and select **Preview changes**. The preview reads only the signed-in account. It groups goals, projects, tasks, subjects, habits, interview topics, meal templates and recurring sessions by life area and labels new, existing, archived, previously removed, duplicate and conflicting records. Confirm to install the new items in one transaction. Nothing is installed on registration or by merely opening the page.
 
 The preset contains nine goals, three projects, 40 starter tasks and milestones, five editable subject placeholders, eight habits, 22 weekly blocks, 21 interview topics, and six optional meal templates. It never creates completion entries, grades, weight measurements, applications, meal logs, scores or past reviews. The calorie and protein values are planning references. The user's saved timezone and week start are retained; a new settings row defaults to Asia/Colombo and Monday.
 

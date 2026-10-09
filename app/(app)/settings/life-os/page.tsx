@@ -1,7 +1,7 @@
 ﻿import { requireUser } from '@/lib/auth/session';
 import { LifeOsSetup } from '@/components/life/life-os-setup';
 
-export const metadata = { title: 'Life OS Setup | HabitFlow' };
+export const metadata = { title: 'Personal setup | LifeOS' };
 
 export default async function LifeOsSetupPage() {
   await requireUser();

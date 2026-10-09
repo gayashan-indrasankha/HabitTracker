@@ -65,8 +65,8 @@ export function LifeOsSetup() {
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="space-y-2">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Optional setup</p>
-        <h1 className="text-3xl font-bold tracking-tight">Set up my Life OS</h1>
-        <p className="text-sm font-semibold">Preset: Personal Life OS</p>
+        <h1 className="text-3xl font-bold tracking-tight">Set up my LifeOS</h1>
+        <p className="text-sm font-semibold">Preset: Personal plan</p>
         <p className="text-sm text-muted-foreground">
           Choose sections, review every proposed change, then confirm once. Existing and customized
           records remain intact. Nothing is marked complete or logged as achieved.
@@ -166,9 +166,9 @@ export function LifeOsSetup() {
             />
             <span>
               <strong className="block">Apply recommended future schedule changes</strong>Only
-              unchanged, flexible sessions from the earlier Life OS preset qualify. Affected
-              sessions and conflicts appear in the preview. Earlier occurrences and customized
-              schedules stay intact. Fixed lectures are excluded.
+              unchanged, flexible sessions from the earlier personal plan qualify. Affected sessions
+              and conflicts appear in the preview. Earlier occurrences and customized schedules stay
+              intact. Fixed lectures are excluded.
             </span>
           </label>
           <button
@@ -280,7 +280,7 @@ export function LifeOsSetup() {
         {state.success && (
           <div role="status" className="rounded-xl border p-4 text-sm space-y-3">
             <p>{state.success}</p>
-            <nav aria-label="Open your Life OS" className="flex flex-wrap gap-3">
+            <nav aria-label="Open your LifeOS" className="flex flex-wrap gap-3">
               {(
                 [
                   ['Dashboard', '/dashboard'],

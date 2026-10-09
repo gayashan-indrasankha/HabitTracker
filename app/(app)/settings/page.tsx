@@ -5,7 +5,7 @@ import { NutritionSettings } from '@/components/nutrition/nutrition-settings';
 import { getMealTemplates } from '@/lib/dal/nutrition';
 import Link from 'next/link';
 
-export const metadata = { title: 'Settings | HabitFlow' };
+export const metadata = { title: 'Settings | LifeOS' };
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -16,7 +16,7 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Personalise your HabitFlow experience</p>
+        <p className="text-sm text-muted-foreground">Personalise your LifeOS experience</p>
       </div>
 
       <SettingsForm defaultValues={settings} />
@@ -32,7 +32,7 @@ export default async function SettingsPage() {
             href="/settings/life-os"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
           >
-            Set up my Life OS
+            Set up my LifeOS
           </Link>
           <a
             href="/api/export"
