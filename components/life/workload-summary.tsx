@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { weeklyWorkload } from '@/lib/planning/workload';
 import { saveCapacityAction } from '@/lib/actions/planning-actions';
 import { ActionForm } from './action-form';
@@ -79,12 +78,12 @@ export function WorkloadSummary({
               />
             </div>
             {day.overloaded && (
-              <Link
-                href={`/week?date=${day.date}#day-${day.date}`}
+              <a
+                href={`#day-${day.date}`}
                 className="mt-1 block font-semibold text-amber-700 underline dark:text-amber-300"
               >
                 Over capacity · adjust
-              </Link>
+              </a>
             )}
             {day.timeOff.length > 0 && <p className="mt-1">{day.timeOff.join(', ')} time off</p>}
             {day.fixedMinutes + day.flexibleMinutes === 0 && day.timeOff.length === 0 && (

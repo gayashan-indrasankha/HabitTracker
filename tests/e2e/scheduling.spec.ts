@@ -14,6 +14,7 @@ test('concurrent overlapping schedule submissions commit only one block', async 
   const other = await page.context().newPage();
   async function prepare(target: typeof page, title: string) {
     await target.goto('/week?date=2026-10-12');
+    await target.getByText('Time blocks and detailed planning (optional)').click();
     const form = target
       .locator('form')
       .filter({ has: target.getByRole('button', { name: 'Add block' }) });
@@ -48,6 +49,7 @@ test('concurrent overlapping schedule submissions commit only one block', async 
     expect(successes).toBe(1);
     expect(conflicts).toBe(1);
     await page.reload();
+    await page.getByText('Time blocks and detailed planning (optional)').click();
     await expect(
       page
         .locator('article')
@@ -75,6 +77,7 @@ test('recurrence history, premature completion, same-series collision, and resto
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
 
   await page.goto('/week?date=2026-10-05');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   const add = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add block' }) });
   await add.locator('[name="title"]').fill(name);
   await add.locator('[name="localStartTime"]').fill('09:00');
@@ -89,6 +92,7 @@ test('recurrence history, premature completion, same-series collision, and resto
   await past.getByRole('button', { name: 'Complete' }).click();
   await expect(past.getByRole('status')).toContainText('Occurrence updated');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: name }).first()).toContainText(
     'completed',
   );
@@ -108,10 +112,12 @@ test('recurrence history, premature completion, same-series collision, and resto
   await edit.getByRole('button', { name: 'Save block' }).click();
   await expect(series.getByRole('status')).toContainText('Time block edited');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: name }).first()).toContainText(
     '09:00–10:00',
   );
   await page.goto('/week?date=2026-10-12');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   const future = page.locator('article').filter({ hasText: name }).first();
   await expect(future).toContainText('14:00–15:00');
   await future.getByRole('button', { name: 'Complete' }).click();
@@ -132,6 +138,7 @@ test('recurrence history, premature completion, same-series collision, and resto
   await skip.getByRole('button', { name: 'Skip', exact: true }).click();
   await expect(future).toContainText('skipped');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   const skipped = page.locator('article').filter({ hasText: name }).first();
   await expect(skipped).toContainText('skipped');
   await expect(skipped).toContainText('Recovery day');
@@ -139,11 +146,13 @@ test('recurrence history, premature completion, same-series collision, and resto
   await skipped.getByRole('button', { name: 'Restore' }).click();
   await expect(skipped).toContainText('planned');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: name }).first()).toContainText('planned');
   await page.goto('/review?week=2026-10-05');
   await expect(page.getByText(/1 of 2 planned sessions completed/)).toBeVisible();
 
   await page.goto('/week?date=2026-10-12');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   const statusSeries = page
     .locator('li')
     .filter({ hasText: name })
@@ -156,8 +165,10 @@ test('recurrence history, premature completion, same-series collision, and resto
   await pause.getByRole('button', { name: 'paused' }).click();
   await expect(statusSeries.locator('p.text-xs').first()).toContainText('paused');
   await page.goto('/week?date=2026-10-19');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: name })).toHaveCount(0);
   await page.goto('/week?date=2026-10-05');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: name }).first()).toContainText(
     '09:00–10:00',
   );
@@ -179,6 +190,7 @@ test('recurrence history, premature completion, same-series collision, and resto
   await resume.getByRole('button', { name: 'active' }).click();
   await expect(archived.locator('p.text-xs').first()).toContainText('active');
   await page.goto('/week?date=2026-11-02');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: name })).toHaveCount(2);
   await page.goto('/review?week=2026-10-05');
   await expect(page.getByText(/1 of 2 planned sessions completed/)).toBeVisible();
@@ -193,6 +205,7 @@ test('recurrence history, premature completion, same-series collision, and resto
     await otherPage.getByRole('button', { name: 'Create account' }).click();
     await expect(otherPage).toHaveURL(/\/dashboard/, { timeout: 90_000 });
     await otherPage.goto('/week?date=2026-10-05');
+    await otherPage.getByText('Time blocks and detailed planning (optional)').click();
     await expect(otherPage.getByText(name)).toHaveCount(0);
   } finally {
     await other.close();

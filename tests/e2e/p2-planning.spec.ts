@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('weekly adjustment, time off, optional gym, and minimum day persist', async ({ page }) => {
+test('weekly adjustment, time off, optional gym, and a clear Today view persist', async ({
+  page,
+}) => {
   test.setTimeout(240_000);
   test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
   const tag = Date.now();
@@ -12,6 +14,7 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   await page.goto('/week?date=2026-10-05');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.getByRole('heading', { name: 'Weekly workload' })).toBeVisible();
   await expect(page.getByText('Not recorded')).toBeVisible();
   const capacity = page
@@ -44,6 +47,7 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
     page.locator('#day-2026-10-10 article').filter({ hasText: `P2 focus ${tag}` }),
   ).toContainText('11:00–11:30');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(
     page.locator('#day-2026-10-10 article').filter({ hasText: `P2 focus ${tag}` }),
   ).toBeVisible();
@@ -71,6 +75,7 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
   await newPlan.getByRole('button', { name: 'Plan time off' }).click();
   await expect(newPlan.getByRole('status')).toContainText('1 flexible sessions excused');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(
     page.locator('#day-2026-10-10 article').filter({ hasText: `P2 focus ${tag}` }),
   ).toContainText('excused');
@@ -86,6 +91,7 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
   await gym.getByRole('button', { name: 'Save optional workout' }).click();
   await expect(gym.getByRole('status')).toContainText('enabled');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(
     page.locator('#day-2026-10-11 article').filter({ hasText: 'Optional light workout' }),
   ).toHaveCount(1);
@@ -94,10 +100,12 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
   await gym.getByRole('button', { name: 'Save optional workout' }).click();
   await expect(gym.getByRole('status')).toContainText('disabled');
   await page.goto('/week?date=2026-10-12');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: 'Optional light workout' })).toHaveCount(
     0,
   );
   await page.goto('/week?date=2026-10-05');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   const planned = page
     .locator('section')
     .filter({ has: page.getByRole('heading', { name: 'Plan time off' }) });
@@ -106,6 +114,7 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
   await planned.getByRole('button', { name: 'Cancel time off' }).click();
   await expect(planned.getByText(/Travel · cancelled/)).toBeVisible();
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(
     page.locator('#day-2026-10-10 article').filter({ hasText: `P2 focus ${tag}` }),
   ).toContainText('planned');
@@ -119,25 +128,14 @@ test('weekly adjustment, time off, optional gym, and minimum day persist', async
   await again.getByRole('button', { name: 'Plan time off' }).click();
   await expect(again.getByRole('status')).toContainText('Time off saved');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await page.getByText('Past and planned time off').click();
   await expect(page.getByText(/2026-10-10.*Recovery.*active/)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/today');
-  await page.getByLabel('Day mode').selectOption('minimum');
-  await page.getByRole('button', { name: 'Update mode' }).click();
-  await expect(page.getByRole('heading', { name: 'Small next action' })).toBeVisible();
-  const small = page
-    .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Save small action' }) });
-  await small.locator('[name="action"]').fill('Read two pages');
-  await small.locator('[name="done"]').check();
-  await small.getByRole('button', { name: 'Save small action' }).click();
+  await expect(page.getByRole('button', { name: 'Show less today' })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByText('Smaller action recorded.')).toBeVisible();
-  await page.getByRole('button', { name: 'Resume normal plan' }).click();
-  await expect(page.getByRole('heading', { name: 'Small next action' })).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByLabel('Day mode')).toHaveValue('normal');
+  await expect(page.getByRole('button', { name: 'Show less today' })).toHaveCount(0);
 });
 
 test('planning settings and time-off edits stay within the signed-in account', async ({
@@ -160,6 +158,7 @@ test('planning settings and time-off edits stay within the signed-in account', a
   }
   await register(page, 'P2 owner');
   await page.goto('/week?date=2026-10-05');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   const ownerPlanner = page
     .locator('section')
     .filter({ has: page.getByRole('heading', { name: 'Plan time off' }) });
@@ -171,6 +170,7 @@ test('planning settings and time-off edits stay within the signed-in account', a
   await ownerCreate.getByRole('button', { name: 'Plan time off' }).click();
   await expect(ownerCreate.getByRole('status')).toContainText('Time off saved');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await ownerPlanner.getByText('Past and planned time off').click();
   await ownerPlanner.getByText('Edit or cancel').click();
   const ownerId = await ownerPlanner
@@ -183,6 +183,7 @@ test('planning settings and time-off edits stay within the signed-in account', a
     const other = await otherContext.newPage();
     await register(other, 'P2 other');
     await other.goto('/week?date=2026-10-05');
+    await other.getByText('Time blocks and detailed planning (optional)').click();
     const planner = other
       .locator('section')
       .filter({ has: other.getByRole('heading', { name: 'Plan time off' }) });
@@ -194,6 +195,7 @@ test('planning settings and time-off edits stay within the signed-in account', a
     await create.getByRole('button', { name: 'Plan time off' }).click();
     await expect(create.getByRole('status')).toContainText('Time off saved');
     await other.reload();
+    await other.getByText('Time blocks and detailed planning (optional)').click();
     await planner.getByText('Past and planned time off').click();
     await planner.getByText('Edit or cancel').click();
     const edit = planner
@@ -219,6 +221,7 @@ test('planning settings and time-off edits stay within the signed-in account', a
     await capacity.locator('[name="capacity"]').fill('45');
     await capacity.getByRole('button', { name: 'Save capacity' }).click();
     await page.reload();
+    await page.getByText('Time blocks and detailed planning (optional)').click();
     await expect(
       page
         .locator('form')
@@ -226,10 +229,9 @@ test('planning settings and time-off edits stay within the signed-in account', a
         .locator('[name="capacity"]'),
     ).toHaveValue('');
     await other.goto('/today');
-    await other.getByLabel('Day mode').selectOption('minimum');
-    await other.getByRole('button', { name: 'Update mode' }).click();
+    await expect(other.getByRole('button', { name: 'Show less today' })).toHaveCount(0);
     await page.goto('/today');
-    await expect(page.getByLabel('Day mode')).toHaveValue('normal');
+    await expect(page.getByRole('button', { name: 'Show less today' })).toHaveCount(0);
   } finally {
     await otherContext.close();
   }
