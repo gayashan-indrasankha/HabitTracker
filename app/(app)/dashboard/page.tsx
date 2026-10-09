@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
-import { getActiveHabitsByUser } from '@/lib/dal/habits';
+import { getHistoricalHabitsByUser } from '@/lib/dal/habits';
 import {
   getEntriesByUserAndDateRange,
   getActiveHabitCompletionsThrough,
@@ -22,7 +22,7 @@ import { calculateCompletionRate } from '@/lib/analytics/completion';
 import { calculateStreaks } from '@/lib/analytics/streak';
 import { getNoteByUserAndDate } from '@/lib/dal/notes';
 import { format } from 'date-fns';
-import { weekStart } from '@/lib/analytics/habit-month-progress';
+import { isHabitActiveOn, weekStart } from '@/lib/analytics/habit-month-progress';
 
 interface DashboardPageProps {
   searchParams: Promise<{ month?: string }>;
@@ -56,11 +56,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const lastWeekStart = weekStart(calendarDays.at(-1)!.date, settings.weekStartsOn);
   const [wy, wm, wd] = lastWeekStart.split('-').map(Number);
   const expandedEnd = new Date(Date.UTC(wy, wm - 1, wd + 6)).toISOString().slice(0, 10);
-  const [habits, entries, todayNote] = await Promise.all([
-    getActiveHabitsByUser(userId),
+  const [allHabits, entries, todayNote] = await Promise.all([
+    getHistoricalHabitsByUser(userId),
     getEntriesByUserAndDateRange(userId, expandedStart, expandedEnd),
     getNoteByUserAndDate(userId, todayStr),
   ]);
+  const habits = allHabits.filter(
+    (habit) =>
+      calendarDays.some((day) => isHabitActiveOn(habit, day.date)) ||
+      entries.some(
+        (entry) =>
+          entry.habitId === habit.id && calendarDays.some((day) => day.date === entry.date),
+      ),
+  );
 
   const monthEnd = calendarDays.at(-1)?.date ?? todayStr;
   const streakCutoff = monthEnd < todayStr ? monthEnd : todayStr;
@@ -78,6 +86,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight">Habit tracker</h1>
           <p className="text-sm text-muted-foreground">Your monthly progress at a glance.</p>
+          {habits.some((habit) =>
+            habit.scheduleRevisions.some((revision) => revision.source === 'legacy'),
+          ) && (
+            <p className="text-xs text-muted-foreground">
+              Older completions remain visible; schedule obligations before the legacy baseline are
+              unknown.
+            </p>
+          )}
         </div>
         <Suspense fallback={null}>
           <MonthNavigator currentMonth={selectedMonth} timezone={settings.timezone} />

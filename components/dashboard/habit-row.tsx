@@ -6,6 +6,7 @@ import { DayCell } from './day-cell';
 import { toggleEntryAction } from '@/lib/actions/entry-actions';
 import {
   habitMonthProgress,
+  habitRuleOn,
   isGridApplicable,
   isFlexibleWeekly,
   weeklyQuotaAttainment,
@@ -37,8 +38,9 @@ export function HabitRow({
     () => habitMonthProgress(habit, days, completedDates, today),
     [habit, days, completedDates, today],
   );
-  const flexible = isFlexibleWeekly(habit.schedule);
   const displayedCutoff = today < days.at(-1)!.date ? today : days.at(-1)!.date;
+  const displayedRule = habitRuleOn(habit, displayedCutoff);
+  const flexible = displayedRule ? isFlexibleWeekly(displayedRule.schedule) : false;
   const weekly = flexible
     ? weeklyQuotaAttainment(habit, displayedCutoff, completedDates, displayedCutoff, weekStartsOn)
     : null;
@@ -96,6 +98,7 @@ export function HabitRow({
           </span>
           <span className="min-w-0 truncate font-medium" title={habit.name}>
             {habit.name}
+            {habit.archived ? ' (Archived)' : ''}
           </span>
         </span>
         {error && (
@@ -105,7 +108,7 @@ export function HabitRow({
         )}
       </th>
       <td className="w-20 min-w-20 border-b px-2 py-3 text-center font-semibold tabular-nums">
-        {flexible ? `${habit.schedule.split(':')[1]}/week` : progress.goal}
+        {flexible ? `${displayedRule?.schedule.split(':')[1]}/week` : progress.goal}
       </td>
       <td className="w-28 min-w-28 border-b px-2 py-3">
         {flexible ? (
@@ -144,6 +147,7 @@ export function HabitRow({
             isToday={day.date === today}
             isFuture={day.date > today}
             isEligible={isEligible}
+            isReadOnly={habit.archived || !isEligible}
             isPending={pendingDate === day.date}
             isBusy={pendingDate !== null}
             onToggle={handleToggle}

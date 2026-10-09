@@ -11,6 +11,7 @@ interface DayCellProps {
   isToday: boolean;
   isFuture: boolean;
   isEligible: boolean;
+  isReadOnly?: boolean;
   isPending: boolean;
   isBusy: boolean;
   onToggle: (date: string) => void;
@@ -23,6 +24,7 @@ export const DayCell = memo(function DayCell({
   isToday,
   isFuture,
   isEligible,
+  isReadOnly = false,
   isPending,
   isBusy,
   onToggle,
@@ -30,13 +32,13 @@ export const DayCell = memo(function DayCell({
   const label = `${isCompleted ? 'Remove completion' : 'Mark complete'} for ${habitName} on ${date}`;
   return (
     <td className={cn('w-10 min-w-10 border-b p-1 text-center', isToday && 'bg-primary/5')}>
-      {isEligible ? (
+      {isEligible || isCompleted ? (
         <button
           type="button"
           aria-label={label}
           aria-pressed={isCompleted}
           title={label}
-          disabled={isFuture || isBusy}
+          disabled={isFuture || isBusy || isReadOnly}
           onClick={() => onToggle(date)}
           className={cn(
             'mx-auto flex h-7 w-7 items-center justify-center rounded-[5px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
