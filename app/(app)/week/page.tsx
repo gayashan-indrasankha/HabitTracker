@@ -19,9 +19,12 @@ import { AdjustOccurrence } from '@/components/life/adjust-occurrence';
 import { WorkloadSummary } from '@/components/life/workload-summary';
 import { TimeOffPlanner } from '@/components/life/time-off-planner';
 import { OptionalGym } from '@/components/life/optional-gym';
-import { weeklyWorkload } from '@/lib/planning/workload';
+import { taskSessionLinks, weeklyWorkload } from '@/lib/planning/workload';
+import { gymWeekSummary } from '@/lib/planning/gym-summary';
+import { getHistoricalHabitsByUser } from '@/lib/dal/habits';
+import { getEntriesByUserAndDateRange } from '@/lib/dal/habit-entries';
 import { db } from '@/lib/db';
-import { timeOffDays } from '@/lib/db/schema';
+import { timeBlockExceptions, timeOffDays } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logSessionMinutesAction } from '@/lib/actions/planning-actions';
 import { ruleOn } from '@/lib/planning/time-blocks';
@@ -41,14 +44,25 @@ export default async function WeekPage({
   const start = weekStart(focused, settings.weekStartsOn);
   const end = addCalendarDays(start, 6);
   const dates = Array.from({ length: 7 }, (_, i) => addCalendarDays(start, i));
-  const [data, tasks, goals, projects, timeOff] = await Promise.all([
-    getBlocksForRange(user.id, start, end),
-    getTasks(user.id),
-    getGoals(user.id),
-    getProjects(user.id),
-    db.select().from(timeOffDays).where(eq(timeOffDays.userId, user.id)),
-  ]);
+  const [data, tasks, goals, projects, timeOff, allExceptions, gymHabits, gymEntries] =
+    await Promise.all([
+      getBlocksForRange(user.id, start, end),
+      getTasks(user.id),
+      getGoals(user.id),
+      getProjects(user.id),
+      db.select().from(timeOffDays).where(eq(timeOffDays.userId, user.id)),
+      db.select().from(timeBlockExceptions).where(eq(timeBlockExceptions.userId, user.id)),
+      getHistoricalHabitsByUser(user.id),
+      getEntriesByUserAndDateRange(user.id, start, end),
+    ]);
   const occurrences = expandBlocks(data.rules, data.exceptions, start, end, data.revisions);
+  const links = taskSessionLinks(tasks, data.rules, data.revisions, allExceptions);
+  const gym = gymWeekSummary(
+    dates,
+    occurrences,
+    gymEntries,
+    new Set(gymHabits.filter((habit) => habit.templateKey === 'gym-4').map((habit) => habit.id)),
+  );
   const workload = weeklyWorkload(
     dates,
     occurrences,
@@ -56,6 +70,7 @@ export default async function WeekPage({
     data.exceptions,
     timeOff,
     settings.flexibleCapacityMinutes,
+    links,
   );
   const dateLabel = (date: string) =>
     new Intl.DateTimeFormat('en', {
@@ -97,6 +112,20 @@ export default async function WeekPage({
         capacity={settings.flexibleCapacityMinutes}
         dateLabel={dateLabel}
       />
+      <section aria-label="Weekly training" className="rounded-2xl border bg-card p-4">
+        <h2 className="font-semibold">Weekly training</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {gym.completedMain} of {gym.plannedMain} main sessions completed · {gym.optionalCompleted}{' '}
+          optional gym visits ({gym.techniqueCompleted} technique) · {gym.habitOnlyCompleted}{' '}
+          habit-only visits · {gym.totalRecordedVisits} total recorded gym visits ·{' '}
+          {gym.restRecoveryDays} rest/recovery days.
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          A gym habit check on the same day as a completed session counts as one visit.{' '}
+          {gym.mobilityCompleted} mobility/recovery session(s) are recorded separately from gym
+          visits.
+        </p>
+      </section>
       <nav aria-label="Choose day" className="flex gap-2 overflow-x-auto pb-1 xl:hidden">
         {dates.map((date) => (
           <Link

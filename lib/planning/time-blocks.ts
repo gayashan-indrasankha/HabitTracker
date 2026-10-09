@@ -1,5 +1,6 @@
 export type BlockRule = {
   id: string;
+  templateKey?: string | null;
   title: string;
   category: string;
   localStartTime: string;
