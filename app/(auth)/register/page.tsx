@@ -1,15 +1,16 @@
 import Link from 'next/link';
-import { Activity, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { SignUpForm } from '@/components/auth/sign-up-form';
+import { BrandLogo } from '@/components/layout/brand-logo';
 
-export const metadata = { title: 'Create account | HabitFlow' };
+export const metadata = { title: 'Create account | LifeOS' };
 
 export default function RegisterPage() {
   return (
     <div className="grid w-full max-w-5xl overflow-hidden rounded-2xl border bg-card shadow-xl lg:grid-cols-2">
       <aside className="hidden bg-primary p-10 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
-        <div className="flex items-center gap-2 text-lg font-semibold">
-          <Activity aria-hidden="true" /> HabitFlow
+        <div className="flex justify-center pt-3">
+          <BrandLogo className="h-24 w-96" inverted />
         </div>
         <div className="space-y-6">
           <p className="text-4xl font-semibold leading-tight">
@@ -25,8 +26,8 @@ export default function RegisterPage() {
         <p className="text-sm text-primary-foreground/70">One day at a time.</p>
       </aside>
       <div className="px-6 py-9 sm:px-10 sm:py-12">
-        <Link href="/" className="mb-8 flex items-center gap-2 text-lg font-semibold lg:hidden">
-          <Activity aria-hidden="true" className="text-primary" /> HabitFlow
+        <Link href="/" className="mb-8 inline-flex lg:hidden">
+          <BrandLogo className="w-48" />
         </Link>
         <div className="mb-6 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">

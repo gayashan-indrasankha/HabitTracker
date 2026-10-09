@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { BrandLogo } from '@/components/layout/brand-logo';
 
 const navigation = [
   { name: 'Home', href: '/dashboard', icon: LayoutDashboard },
@@ -77,12 +78,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
     <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col border-r bg-card lg:flex">
       {/* Logo */}
       <div className="flex h-16 items-center gap-2.5 border-b px-6">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-black italic text-primary-foreground">
-          HF
-        </span>
-        <span className="text-base font-black uppercase tracking-[.12em]">
-          Habit<span className="text-primary">Flow</span>
-        </span>
+        <BrandLogo className="w-full" />
       </div>
 
       {/* Nav */}

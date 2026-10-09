@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from '@/lib/auth/client';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { BrandLogo } from '@/components/layout/brand-logo';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -47,8 +48,8 @@ export function AppHeader({ user, settings }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-card/80 px-4 backdrop-blur-sm md:px-6 lg:px-8">
       <div className="min-w-0">
-        <Link href="/dashboard" className="text-sm font-black uppercase tracking-[.12em] lg:hidden">
-          Habit<span className="text-primary">Flow</span>
+        <Link href="/dashboard" className="inline-flex items-center lg:hidden">
+          <BrandLogo className="h-10 w-40" />
         </Link>
         {signOutError && (
           <p role="alert" className="text-xs text-destructive sm:text-sm">
