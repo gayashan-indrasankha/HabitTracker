@@ -44,7 +44,15 @@ export function HabitRow({
   const weekly = flexible
     ? weeklyQuotaAttainment(habit, displayedCutoff, completedDates, displayedCutoff, weekStartsOn)
     : null;
-  const monthCount = days.filter((day) => completedDates.has(day.date)).length;
+  const displayedProgress = weekly
+    ? {
+        completed: weekly.completed,
+        goal: weekly.goal,
+        percentage: weekly.goal
+          ? Math.min(100, Math.round((weekly.completed / weekly.goal) * 100))
+          : 0,
+      }
+    : progress;
 
   const handleToggle = useCallback(
     async (date: string) => {
@@ -111,30 +119,18 @@ export function HabitRow({
         {flexible ? `${displayedRule?.schedule.split(':')[1]}/week` : progress.goal}
       </td>
       <td className="w-28 min-w-28 border-b px-2 py-3">
-        {flexible ? (
-          <div className="text-xs tabular-nums">
-            <strong>
-              {weekly?.completed} / {weekly?.goal}
-            </strong>{' '}
-            this week
-            <span className="block text-muted-foreground">{monthCount} logged this month</span>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-baseline justify-between gap-1 tabular-nums">
-              <span className="font-semibold">
-                {progress.completed} / {progress.goal}
-              </span>
-              <span className="text-xs text-muted-foreground">{progress.percentage}%</span>
-            </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-[width] duration-200"
-                style={{ width: `${progress.percentage}%` }}
-              />
-            </div>
-          </>
-        )}
+        <div className="flex items-baseline justify-between gap-1 tabular-nums">
+          <span className="font-semibold">
+            {displayedProgress.completed} / {displayedProgress.goal}
+          </span>
+          <span className="text-xs text-muted-foreground">{displayedProgress.percentage}%</span>
+        </div>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-200"
+            style={{ width: `${displayedProgress.percentage}%` }}
+          />
+        </div>
       </td>
       {days.map((day) => {
         const isEligible = isGridApplicable(habit, day, days, completedDates);
