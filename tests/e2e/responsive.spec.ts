@@ -22,7 +22,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       ['/today', /Today|Thursday/],
       ['/week', /Plan a realistic week/],
       ['/habits', /Habits/],
-      ['/dashboard', /Habit tracker/],
+      ['/dashboard', /LifeOS/],
       ['/goals', /Connect the work to the outcome/],
       ['/goals/evidence', /Evidence & career readiness/],
       ['/review', /Notice, learn, adjust/],

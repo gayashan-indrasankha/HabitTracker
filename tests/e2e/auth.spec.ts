@@ -56,7 +56,7 @@ test('registration, persistent session, logout, login, and protected routes', as
   await expect(page).toHaveURL(/\/dashboard/);
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Habit tracker' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'LifeOS' }).first()).toBeVisible();
   const navigation = page.getByRole('navigation', { name: 'Main navigation' });
   await expect(navigation.getByRole('link').first()).toHaveText('Home');
   await expect(navigation.getByRole('link', { name: 'Home' })).toHaveAttribute(

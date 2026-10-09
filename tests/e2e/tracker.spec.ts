@@ -83,7 +83,7 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await expect(page.getByRole('row', { name: new RegExp(habitName) })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const scrollArea = page.getByLabel('Scroll monthly habit tracker horizontally');
+  const scrollArea = page.getByLabel('Scroll monthly tracker horizontally');
   await expect(scrollArea).toBeVisible();
   const sizes = await scrollArea.evaluate((element) => ({
     client: element.clientWidth,

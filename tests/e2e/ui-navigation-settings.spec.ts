@@ -16,7 +16,7 @@ test('saved theme applies immediately and mobile navigation reveals the current 
   await page.getByLabel('Confirm password').fill('UI-settings-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page).toHaveTitle('Home | HabitFlow');
+  await expect(page).toHaveTitle('Home | LifeOS');
   await page.setViewportSize({ width: 320, height: 860 });
   await page.goto('/dashboard?month=2026-09');
   await expect(page.getByRole('button', { name: 'Current month' })).toContainText('Today');
@@ -25,7 +25,7 @@ test('saved theme applies immediately and mobile navigation reveals the current 
   await page.setViewportSize({ width: 390, height: 860 });
 
   await page.goto('/settings');
-  await expect(page).toHaveTitle('Settings | HabitFlow');
+  await expect(page).toHaveTitle('Settings | LifeOS');
   await page.getByRole('combobox', { name: 'Theme' }).click();
   await page.getByRole('option', { name: 'Dark' }).click();
   await expect(page.getByRole('combobox', { name: 'Theme' })).toContainText('Dark');
@@ -52,11 +52,11 @@ test('saved theme applies immediately and mobile navigation reveals the current 
   await page.getByRole('button', { name: 'Save Settings' }).click();
   await expect(page.getByText('Saved successfully')).toBeVisible();
   await page.goto('/today');
-  await expect(page).toHaveTitle('Today | HabitFlow');
+  await expect(page).toHaveTitle('Today | LifeOS');
   await expect(page.getByText('Today · UTC')).toBeVisible();
 
   await page.goto('/goals/evidence');
-  await expect(page).toHaveTitle('Evidence & Career Readiness | HabitFlow');
+  await expect(page).toHaveTitle('Evidence & Career Readiness | LifeOS');
   const activeLink = page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', {
     name: 'Goals & Projects',
   });
