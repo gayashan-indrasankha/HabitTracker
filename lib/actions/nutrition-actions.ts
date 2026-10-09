@@ -63,7 +63,7 @@ export async function saveMealTemplateAction(
       .select({ count: sql<number>`count(*)::int` })
       .from(mealTemplates)
       .where(eq(mealTemplates.userId, userId));
-    if (count >= 5) return { error: 'Keep the checklist to five meals or fewer.' };
+    if (count >= 6) return { error: 'Keep the checklist to six meals or fewer.' };
     await db.insert(mealTemplates).values({ userId, ...values, sortOrder: count });
   }
   revalidateNutrition();

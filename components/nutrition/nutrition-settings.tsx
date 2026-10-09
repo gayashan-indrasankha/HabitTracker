@@ -22,10 +22,10 @@ export function NutritionSettings({ enabled, meals }: { enabled: boolean; meals:
       </ActionForm>
       <details className="mt-4">
         <summary className="cursor-pointer font-semibold">
-          Edit meal plan ({meals.length}/5)
+          Edit meal plan ({meals.length}/6)
         </summary>
         <div className="mt-3 space-y-4">
-          {[...meals, ...(meals.length < 5 ? [null] : [])].map((meal) => (
+          {[...meals, ...(meals.length < 6 ? [null] : [])].map((meal) => (
             <ActionForm
               key={meal?.id ?? 'new'}
               action={saveMealTemplateAction}

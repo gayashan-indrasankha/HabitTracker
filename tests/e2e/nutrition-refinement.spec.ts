@@ -114,7 +114,7 @@ test('meal templates and logs remain private to their account', async ({ page, b
     const otherSettings = other
       .getByRole('heading', { name: 'Optional meal checklist' })
       .locator('..');
-    await expect(otherSettings.getByText('Edit meal plan (0/5)')).toBeVisible();
+    await expect(otherSettings.getByText('Edit meal plan (0/6)')).toBeVisible();
     await otherSettings.getByRole('button', { name: 'Enable checklist' }).click();
     await other.goto('/today');
     await other.getByText('Nutrition checklist').click();
