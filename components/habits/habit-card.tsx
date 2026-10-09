@@ -54,28 +54,29 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
   }
 
   return (
-    <Card className="relative border-0 shadow-sm transition-shadow hover:shadow-md">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            {habit.icon && (
-              <span className="text-xl shrink-0" aria-hidden>
-                {habit.icon}
+    <Card className="rounded-2xl shadow-none transition-colors hover:border-primary/30">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xl font-semibold text-primary"
+            aria-hidden="true"
+          >
+            {habit.icon || habit.name.charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="break-words font-semibold leading-snug">{habit.name}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+              {habit.category && <span>{habit.category}</span>}
+              {habit.category && <span aria-hidden="true">·</span>}
+              <span>{scheduleLabel(habit.schedule)}</span>
+              <span aria-hidden="true">·</span>
+              <span>
+                Goal: {habit.monthlyTarget} {habit.monthlyTarget === 1 ? 'day' : 'days'}/month
               </span>
-            )}
-            <div className="min-w-0">
-              <p className="truncate font-semibold" title={habit.name}>
-                {habit.name}
-              </p>
-              {habit.category && (
-                <span
-                  className="mt-0.5 inline-block max-w-full truncate rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                  title={habit.category}
-                >
-                  {habit.category}
-                </span>
-              )}
             </div>
+            {habit.description && (
+              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{habit.description}</p>
+            )}
           </div>
 
           <DropdownMenu>
@@ -83,14 +84,14 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 shrink-0"
+                className="h-10 w-10 shrink-0 text-primary"
                 aria-label={`Actions for ${habit.name}`}
                 disabled={isPending}
               >
                 {isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -123,20 +124,11 @@ export function HabitCard({ habit, isArchived = false }: HabitCardProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
-        {habit.description && (
-          <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{habit.description}</p>
-        )}
         {error && (
-          <p role="alert" className="mt-2 text-xs text-destructive">
+          <p role="alert" className="mt-2 text-sm text-destructive">
             {error}
           </p>
         )}
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
-          <span>Target: {habit.monthlyTarget} days/mo</span>
-          <span>{scheduleLabel(habit.schedule)}</span>
-        </div>
       </CardContent>
     </Card>
   );

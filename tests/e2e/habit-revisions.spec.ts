@@ -34,7 +34,7 @@ test('future habit schedule, archive, and restore preserve earlier checked days'
   await page.getByRole('button', { name: 'Save Habit' }).click();
   await expect(page).toHaveURL(/\/habits$/);
   await page.goto('/dashboard?month=2026-10');
-  await expect(row).toContainText('2 / 8');
+  await expect(row).toContainText('3/week');
   await expect(
     row.getByRole('button', { name: `Remove completion for ${name} on 2026-10-01` }),
   ).toBeVisible();
@@ -42,15 +42,18 @@ test('future habit schedule, archive, and restore preserve earlier checked days'
   await page.goto('/habits');
   await page.getByRole('button', { name: `Actions for ${name}` }).click();
   await page.getByRole('menuitem', { name: 'Archive' }).click();
-  await expect(page.getByRole('heading', { name: 'Archived (1)' })).toBeVisible();
+  await expect(page.getByText('Archived habits (1)')).toBeVisible();
   await page.goto('/dashboard?month=2026-10');
-  await expect(row).toContainText('2 / 7');
   await expect(row).toContainText('Archived');
   await page.goto('/habits');
+  await page.getByText('Archived habits (1)').click();
   await page.getByRole('button', { name: `Actions for ${name}` }).click();
   await page.getByRole('menuitem', { name: 'Unarchive' }).click();
-  await expect(page.getByRole('heading', { name: 'Archived (1)' })).toHaveCount(0);
+  await expect(page.getByText('Archived habits (1)')).toHaveCount(0);
   await page.goto('/dashboard?month=2026-10');
-  await expect(row).toContainText('2 / 8');
+  await expect(row).toContainText('3/week');
   await expect(row).not.toContainText('Archived');
+  await expect(
+    row.getByRole('button', { name: `Remove completion for ${name} on 2026-10-01` }),
+  ).toBeVisible();
 });

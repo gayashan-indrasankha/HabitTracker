@@ -28,6 +28,7 @@ test('habit editing, ordering, archive, and restore preserve completion history'
   const orderSaved = page.waitForResponse(
     (response) => response.url().endsWith('/habits') && response.request().method() === 'POST',
   );
+  await page.getByRole('button', { name: 'Change order' }).click();
   await page.getByRole('button', { name: `Move ${second} up` }).click();
   expect((await orderSaved).ok()).toBe(true);
   await expect(page.getByRole('button', { name: `Move ${second} down` })).toBeEnabled();
@@ -54,11 +55,12 @@ test('habit editing, ordering, archive, and restore preserve completion history'
   await page.goto('/habits');
   await page.getByRole('button', { name: `Actions for ${renamed}` }).click();
   await page.getByRole('menuitem', { name: 'Archive' }).click();
-  await expect(page.getByRole('heading', { name: 'Archived (1)' })).toBeVisible();
+  await expect(page.getByText('Archived habits (1)')).toBeVisible();
   await page.reload();
+  await page.getByText('Archived habits (1)').click();
   await page.getByRole('button', { name: `Actions for ${renamed}` }).click();
   await page.getByRole('menuitem', { name: 'Unarchive' }).click();
-  await expect(page.getByRole('heading', { name: 'Archived (1)' })).toHaveCount(0);
+  await expect(page.getByText('Archived habits (1)')).toHaveCount(0);
   await page.goto('/dashboard?month=2026-10');
   await expect(page.getByRole('row', { name: new RegExp(renamed) })).toContainText('1 / 1');
 });
