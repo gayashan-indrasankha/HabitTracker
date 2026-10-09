@@ -6,6 +6,7 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
   const suffix = Date.now();
   const habitName = `Tracker habit ${suffix}`;
+  const habitDescription = 'The full details for this habit stay readable in the tracker.';
   const today = '2026-10-08';
 
   await page.goto('/register');
@@ -18,6 +19,7 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
 
   await page.goto('/habits/new');
   await page.getByLabel(/Habit Name/).fill(habitName);
+  await page.getByLabel('Description').fill(habitDescription);
   await page.getByLabel(/Monthly Target/).fill('1');
   await page.getByLabel('Start Date').fill(today);
   await page.getByRole('button', { name: 'Save Habit' }).click();
@@ -26,6 +28,18 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await page.goto('/dashboard');
   const row = page.getByRole('row', { name: new RegExp(habitName) });
   await expect(row).toContainText('0 / 1');
+  const habitLabel = row.getByText(habitName, { exact: true });
+  await habitLabel.hover();
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toContainText(habitName);
+  await expect(tooltip).toContainText(habitDescription);
+  const labelBox = await habitLabel.boundingBox();
+  const tooltipBox = await tooltip.boundingBox();
+  expect(labelBox && tooltipBox && tooltipBox.y + tooltipBox.height <= labelBox.y).toBeTruthy();
+  await page.mouse.move(0, 0);
+  await expect(tooltip).toBeHidden();
+  await habitLabel.focus();
+  await expect(tooltip).toBeVisible();
   await row.getByRole('button', { name: `Mark complete for ${habitName} on ${today}` }).click();
   await expect(row).toContainText('1 / 1');
   const donut = page.getByRole('heading', { name: 'Fixed-schedule adherence' }).locator('../..');

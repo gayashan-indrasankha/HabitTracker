@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { CircleDot } from 'lucide-react';
 import { DayCell } from './day-cell';
+import { HabitNameTooltip } from './habit-name-tooltip';
 import { toggleEntryAction } from '@/lib/actions/entry-actions';
 import {
   habitMonthProgress,
@@ -97,18 +97,12 @@ export function HabitRow({
         scope="row"
         className="sticky left-0 z-10 w-48 min-w-48 max-w-48 border-b bg-card px-4 py-3 text-left group-hover:bg-[#f7faff] dark:group-hover:bg-muted"
       >
-        <span className="flex items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
-          >
-            {habit.icon || <CircleDot className="h-4 w-4" />}
-          </span>
-          <span className="min-w-0 truncate font-medium" title={habit.name}>
-            {habit.name}
-            {habit.archived ? ' (Archived)' : ''}
-          </span>
-        </span>
+        <HabitNameTooltip
+          name={habit.name}
+          icon={habit.icon}
+          description={habit.description}
+          archived={habit.archived}
+        />
         {error && (
           <span role="alert" className="mt-1 block text-xs font-normal text-destructive">
             {error}
