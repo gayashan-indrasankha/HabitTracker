@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, Archive } from 'lucide-react';
 
-export const metadata = { title: 'Habits | HabitFlow' };
+export const metadata = { title: 'Habits | LifeOS' };
 
 export default async function HabitsPage() {
   const user = await requireUser();

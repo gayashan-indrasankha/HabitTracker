@@ -26,7 +26,7 @@ import { setGoalArchiveAction, setProjectArchiveAction } from '@/lib/actions/lif
 import { WeightTrend } from '@/components/life/weight-trend';
 import { weightTrend } from '@/lib/evidence/summary';
 
-export const metadata = { title: 'Goals & Projects | HabitFlow' };
+export const metadata = { title: 'Goals & Projects | LifeOS' };
 
 const areas = [
   'University',

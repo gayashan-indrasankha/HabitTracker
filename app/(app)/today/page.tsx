@@ -28,7 +28,7 @@ import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { internshipApplications, subjectTopics } from '@/lib/db/schema';
 
-export const metadata = { title: 'Today | HabitFlow' };
+export const metadata = { title: 'Today | LifeOS' };
 
 export default async function TodayPage({
   searchParams,

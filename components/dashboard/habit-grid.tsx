@@ -44,12 +44,12 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
 
   return (
     <section
-      aria-label="Monthly habit tracker"
+      aria-label="Monthly tracker"
       className="overflow-hidden rounded-2xl border bg-card shadow-[0_10px_35px_rgba(25,48,100,.08)]"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-4">
         <div>
-          <h2 className="font-bold tracking-tight">Habit tracker</h2>
+          <h2 className="font-bold tracking-tight">Monthly habits</h2>
           <p className="text-xs text-muted-foreground">
             Select a day to mark it complete. Scroll horizontally to see the whole month.
           </p>
@@ -61,7 +61,7 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
       <div
         className="overflow-x-auto overscroll-x-contain"
         tabIndex={0}
-        aria-label="Scroll monthly habit tracker horizontally"
+        aria-label="Scroll monthly tracker horizontally"
       >
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
           <caption className="sr-only">

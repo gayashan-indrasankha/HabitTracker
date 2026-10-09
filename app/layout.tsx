@@ -3,8 +3,8 @@ import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'HabitFlow',
-  description: 'Track your habits, transform your life.',
+  title: 'LifeOS',
+  description: 'Plan your days, track your habits, and make progress on what matters.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

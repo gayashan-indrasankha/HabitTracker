@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
-export const metadata = { title: 'Edit Habit | HabitFlow' };
+export const metadata = { title: 'Edit Habit | LifeOS' };
 
 interface EditHabitPageProps {
   params: Promise<{ id: string }>;

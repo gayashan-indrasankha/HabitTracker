@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
-export const metadata = { title: 'New Habit | HabitFlow' };
+export const metadata = { title: 'New Habit | LifeOS' };
 
 export default async function NewHabitPage() {
   const user = await requireUser();

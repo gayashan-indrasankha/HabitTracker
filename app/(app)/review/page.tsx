@@ -12,7 +12,7 @@ import { ActionForm } from '@/components/life/action-form';
 import { EvidenceReview } from '@/components/life/evidence-review';
 import { weightTrend } from '@/lib/evidence/summary';
 
-export const metadata = { title: 'Review & Insights | HabitFlow' };
+export const metadata = { title: 'Review & Insights | LifeOS' };
 
 const prompts = [
   ['academic', 'Academic progress'],

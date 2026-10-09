@@ -6,7 +6,7 @@ import { getUserSettings } from '@/lib/dal/user-settings';
 import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
 import { NotebookPen } from 'lucide-react';
 
-export const metadata = { title: 'Notes | HabitFlow' };
+export const metadata = { title: 'Notes | LifeOS' };
 
 export default async function NotesPage() {
   const userId = (await requireUser()).id;

@@ -48,7 +48,7 @@ import {
   saveTopicAction,
 } from '@/lib/actions/evidence-actions';
 
-export const metadata = { title: 'Evidence & Career Readiness | HabitFlow' };
+export const metadata = { title: 'Evidence & Career Readiness | LifeOS' };
 
 const field = 'mt-1 min-h-10 w-full rounded-lg border bg-background px-2';
 const label = 'block text-sm';

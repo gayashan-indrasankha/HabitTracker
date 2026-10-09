@@ -29,7 +29,7 @@ import { eq } from 'drizzle-orm';
 import { logSessionMinutesAction } from '@/lib/actions/planning-actions';
 import { ruleOn } from '@/lib/planning/time-blocks';
 
-export const metadata = { title: 'Week | HabitFlow' };
+export const metadata = { title: 'Week | LifeOS' };
 
 export default async function WeekPage({
   searchParams,
