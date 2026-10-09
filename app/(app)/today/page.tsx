@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { z } from 'zod';
 import { format } from 'date-fns';
 import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
@@ -8,8 +9,7 @@ import { getEntriesByUserAndDateRange } from '@/lib/dal/habit-entries';
 import { getNoteByUserAndDate } from '@/lib/dal/notes';
 import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
 import {
-  inHabitRange,
-  isFlexibleWeekly,
+  isFlexibleHabitOn,
   isFixedOccurrence,
   weekStart,
   weeklyQuotaAttainment,
@@ -21,46 +21,74 @@ import { PriorityPanel } from '@/components/life/priority-panel';
 import { saveMinimumAction } from '@/lib/actions/planning-actions';
 import { TodayHabit } from '@/components/life/today-habit';
 import { DailyNoteEditor } from '@/components/notes/daily-note-editor';
+import { MealChecklist } from '@/components/nutrition/meal-checklist';
+import { getMealLogs, getMealTemplates } from '@/lib/dal/nutrition';
+import { mealWeekSummary, type MealStatus } from '@/lib/nutrition/summary';
 import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { internshipApplications, subjectTopics } from '@/lib/db/schema';
 
 export const metadata = { title: 'Today | HabitFlow' };
 
-export default async function TodayPage() {
+export default async function TodayPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mealDate?: string }>;
+}) {
   const user = await requireUser();
   const settings = await getUserSettings(user.id);
   const now = getTodayInTimezone(settings.timezone);
   const date = toDateString(now);
+  const requestedMealDate = (await searchParams).mealDate;
+  const mealDate =
+    requestedMealDate &&
+    z.iso.date().safeParse(requestedMealDate).success &&
+    requestedMealDate <= date
+      ? requestedMealDate
+      : date;
+  const mealWeekStart = weekStart(mealDate, settings.weekStartsOn);
   const start = weekStart(date, settings.weekStartsOn);
-  const [allTasks, dayPlan, blockData, habits, entries, note, projects, followUps, revisionsDue] =
-    await Promise.all([
-      getTasks(user.id),
-      getDayPlan(user.id, date),
-      getBlocksForRange(user.id, date, date),
-      getActiveHabitsByUser(user.id),
-      getEntriesByUserAndDateRange(user.id, start, addCalendarDays(start, 6)),
-      getNoteByUserAndDate(user.id, date),
-      getProjects(user.id),
-      db
-        .select()
-        .from(internshipApplications)
-        .where(
-          and(
-            eq(internshipApplications.userId, user.id),
-            lte(internshipApplications.followUpDate, date),
-            notInArray(internshipApplications.stage, ['saved', 'rejected', 'withdrawn', 'offer']),
-          ),
-        )
-        .orderBy(asc(internshipApplications.followUpDate))
-        .limit(1),
-      db
-        .select()
-        .from(subjectTopics)
-        .where(and(eq(subjectTopics.userId, user.id), lte(subjectTopics.nextRevisionDate, date)))
-        .orderBy(asc(subjectTopics.nextRevisionDate))
-        .limit(1),
-    ]);
+  const [
+    allTasks,
+    dayPlan,
+    blockData,
+    habits,
+    entries,
+    note,
+    projects,
+    followUps,
+    revisionsDue,
+    meals,
+    mealLogs,
+  ] = await Promise.all([
+    getTasks(user.id),
+    getDayPlan(user.id, date),
+    getBlocksForRange(user.id, date, date),
+    getActiveHabitsByUser(user.id),
+    getEntriesByUserAndDateRange(user.id, start, addCalendarDays(start, 6)),
+    getNoteByUserAndDate(user.id, date),
+    getProjects(user.id),
+    db
+      .select()
+      .from(internshipApplications)
+      .where(
+        and(
+          eq(internshipApplications.userId, user.id),
+          lte(internshipApplications.followUpDate, date),
+          notInArray(internshipApplications.stage, ['saved', 'rejected', 'withdrawn', 'offer']),
+        ),
+      )
+      .orderBy(asc(internshipApplications.followUpDate))
+      .limit(1),
+    db
+      .select()
+      .from(subjectTopics)
+      .where(and(eq(subjectTopics.userId, user.id), lte(subjectTopics.nextRevisionDate, date)))
+      .orderBy(asc(subjectTopics.nextRevisionDate))
+      .limit(1),
+    getMealTemplates(user.id),
+    getMealLogs(user.id, mealWeekStart, addCalendarDays(mealWeekStart, 6)),
+  ]);
   const mode = dayPlan?.mode ?? 'normal';
   const selected = allTasks
     .filter((task) => task.scheduledDate === date && task.dailyPriority)
@@ -117,9 +145,7 @@ export default async function TodayPage() {
   );
   const weekday = now.getDay();
   const fixedHabits = habits.filter((habit) => isFixedOccurrence(habit, date, weekday));
-  const weeklyHabits = habits.filter(
-    (habit) => isFlexibleWeekly(habit.schedule) && inHabitRange(habit, date),
-  );
+  const weeklyHabits = habits.filter((habit) => isFlexibleHabitOn(habit, date));
   const done = selected.filter((task) => task.status === 'done').length;
 
   return (
@@ -492,6 +518,28 @@ export default async function TodayPage() {
               Monthly history
             </Link>
           </section>
+          {settings.nutritionEnabled && (
+            <MealChecklist
+              key={mealDate}
+              date={mealDate}
+              today={date}
+              meals={meals.filter(
+                (meal) =>
+                  meal.active ||
+                  mealLogs.some((log) => log.mealId === meal.id && log.date === mealDate),
+              )}
+              initialStatuses={Object.fromEntries(
+                mealLogs
+                  .filter((log) => log.date === mealDate)
+                  .map((log) => [log.mealId, log.status as MealStatus]),
+              )}
+              summary={mealWeekSummary(
+                mealLogs.map((log) => ({ date: log.date, status: log.status as MealStatus })),
+                mealWeekStart,
+                date,
+              )}
+            />
+          )}
           <section className="rounded-2xl border bg-card p-5">
             <h2 className="text-xl font-bold">Evening check-in</h2>
             <p className="mb-3 text-sm text-muted-foreground">

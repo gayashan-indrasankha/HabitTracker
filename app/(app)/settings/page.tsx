@@ -1,6 +1,8 @@
 import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
 import { SettingsForm } from '@/components/settings/settings-form';
+import { NutritionSettings } from '@/components/nutrition/nutrition-settings';
+import { getMealTemplates } from '@/lib/dal/nutrition';
 import Link from 'next/link';
 
 export const metadata = { title: 'Settings | HabitFlow' };
@@ -8,6 +10,7 @@ export const metadata = { title: 'Settings | HabitFlow' };
 export default async function SettingsPage() {
   const user = await requireUser();
   const settings = await getUserSettings(user.id);
+  const meals = await getMealTemplates(user.id);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -17,6 +20,7 @@ export default async function SettingsPage() {
       </div>
 
       <SettingsForm defaultValues={settings} />
+      <NutritionSettings enabled={settings.nutritionEnabled} meals={meals} />
       <section className="space-y-3 rounded-2xl border bg-card p-5">
         <h2 className="text-lg font-semibold">Personal setup and backup</h2>
         <p className="text-sm text-muted-foreground">
