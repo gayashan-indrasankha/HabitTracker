@@ -6,6 +6,8 @@ For the double-click Windows application, see [DESKTOP.md](DESKTOP.md).
 
 For reproducible release gates, migration upgrades, browser coverage, and observed outcomes, see [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
+For the current daily workflow audit and verified usability changes, see [docs/DAILY-USABILITY-AUDIT.md](docs/DAILY-USABILITY-AUDIT.md).
+
 LifeOS is a Next.js 16 personal planning app built on the existing monthly habit tracker. Today connects three selected tasks, time blocks, applicable habits, and a private daily note. Week, Goals, and Review provide a lightweight planning loop. The monthly tracker remains at `/dashboard?month=YYYY-MM`.
 
 ## Requirements
@@ -98,7 +100,7 @@ On Week, the workload card separates fixed commitments from flexible planned tim
 
 The optional fifth gym visit has a configurable day, time, and activity type. Disable it to plan rest without recording a failed workout. The original four template workouts and their completion records are retained. **Plan time off** previews fixed and flexible commitments for a chosen date; you explicitly choose flexible sessions to excuse. Fixed commitments and habits remain unchanged. You can edit or cancel a time-off plan, and excused sessions remain visible in history.
 
-On Today, Reduced and Minimum show fewer priorities and flexible sessions. **Show full plan** reveals de-emphasized work without changing its stored state. Minimum mode lets you record a smaller action separately from full habit completion. **Resume normal plan** restores the full view and saved priority ranks.
+Today now uses task-based planning: focus tasks, habit checkoffs, and an optional shorter task list. **Show less today** displays one unfinished focus task; **Show full day** restores the complete task list. Time blocks and their recorded history remain in Week and no longer appear on Today.
 
 Additive migrations `0009` and `0010` store planning capacity, one-off time-off records and linked excusals, and minimum actions. The JSON backup includes these records and revision history. For isolated checks, run `node tests/integration/p1-pglite.mjs` and, with `HABITFLOW_TEST_ADMIN_URL` set to a loopback admin URL, `node tests/e2e/run-scheduling.mjs tests/e2e/p2-planning.spec.ts`. No production migration or deployment is automatic.
 
