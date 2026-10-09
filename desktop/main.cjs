@@ -12,6 +12,9 @@ let closing = false;
 if (process.env.HABITFLOW_DESKTOP_DATA_DIR) {
   mkdirSync(process.env.HABITFLOW_DESKTOP_DATA_DIR, { recursive: true });
   app.setPath('userData', process.env.HABITFLOW_DESKTOP_DATA_DIR);
+} else {
+  const previousDataDir = path.join(app.getPath('appData'), 'HabitFlow');
+  if (existsSync(path.join(previousDataDir, 'database'))) app.setPath('userData', previousDataDir);
 }
 
 function persistentAuthSecret(dir) {
@@ -125,7 +128,7 @@ else {
         /* The user data directory may itself be unavailable. */
       }
       dialog.showErrorBox(
-        'HabitFlow could not start',
+        'LifeOS could not start',
         error instanceof Error ? error.message : 'Unknown startup error',
       );
       await shutdown();

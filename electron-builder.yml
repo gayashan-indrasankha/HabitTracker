@@ -1,5 +1,5 @@
 appId: com.habitflow.desktop
-productName: HabitFlow
+productName: LifeOS
 asar: false
 compression: store
 directories:
@@ -9,5 +9,6 @@ files:
   - '**/*'
   - '!**/*.map'
 win:
+  icon: app/icon.svg
   target:
     - portable

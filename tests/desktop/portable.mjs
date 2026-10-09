@@ -8,11 +8,11 @@ if (process.platform !== 'win32')
   throw new Error('Windows portable verification requires Windows.');
 const output = resolve('dist-desktop');
 const version = JSON.parse(await readFile(resolve('package.json'), 'utf8')).version;
-const executables = (await readdir(output)).filter((name) => /^HabitFlow .*\.exe$/.test(name));
+const executables = (await readdir(output)).filter((name) => /^LifeOS .*\.exe$/.test(name));
 assert.equal(executables.length, 1, 'Expected one built portable executable.');
 const executablePath = process.env.HABITFLOW_DESKTOP_EXE
   ? resolve(process.env.HABITFLOW_DESKTOP_EXE)
-  : join(output, 'win-unpacked', 'HabitFlow.exe');
+  : join(output, 'win-unpacked', 'LifeOS.exe');
 const dataDir = await mkdtemp(join(tmpdir(), 'habitflow-portable-'));
 const password = 'Portable-test-password-42';
 const email = `portable-${Date.now()}@example.test`;
@@ -53,7 +53,7 @@ async function start() {
   assert.equal(await application.evaluate(({ app }) => app.getVersion()), version);
   const window = await application.firstWindow({ timeout: 90_000 });
   await window.waitForURL(/\/(login|register)(\?|$)/, { timeout: 90_000 });
-  if (await window.getByRole('heading', { name: 'Log in to HabitFlow' }).isVisible()) {
+  if (await window.getByRole('heading', { name: 'Log in to LifeOS' }).isVisible()) {
     await window.getByRole('link', { name: 'Create an account' }).click();
   }
   await expect(window.getByRole('heading', { name: 'Create your account' })).toBeVisible({
@@ -130,7 +130,7 @@ try {
   });
   window = await application.firstWindow({ timeout: 90_000 });
   await window.waitForURL(/\/(dashboard|login)(\?|$)/, { timeout: 90_000 });
-  if (await window.getByRole('heading', { name: 'Log in to HabitFlow' }).isVisible()) {
+  if (await window.getByRole('heading', { name: 'Log in to LifeOS' }).isVisible()) {
     await window.getByLabel('Email address').fill(email);
     await window.getByLabel('Password', { exact: true }).fill(password);
     await window.getByRole('button', { name: 'Log in', exact: true }).click();
