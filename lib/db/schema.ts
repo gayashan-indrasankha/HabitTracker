@@ -113,6 +113,30 @@ export const habits = pgTable(
   ],
 );
 
+export const habitScheduleRevisions = pgTable(
+  'habit_schedule_revisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull(),
+    habitId: uuid('habit_id').notNull(),
+    effectiveDate: date('effective_date').notNull(),
+    schedule: text('schedule').notNull(),
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date'),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    source: varchar('source', { length: 20 }).notNull().default('recorded'),
+  },
+  (table) => [
+    unique('habit_schedule_revisions_habit_date_unique').on(table.habitId, table.effectiveDate),
+    index('habit_schedule_revisions_user_date_idx').on(table.userId, table.effectiveDate),
+    foreignKey({
+      columns: [table.userId, table.habitId],
+      foreignColumns: [habits.userId, habits.id],
+      name: 'habit_schedule_revisions_owner_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
 export const habitEntries = pgTable(
   'habit_entries',
   {
@@ -158,6 +182,52 @@ export const dailyNotes = pgTable(
   ],
 );
 
+export const mealTemplates = pgTable(
+  'meal_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 100 }).notNull(),
+    notes: text('notes'),
+    preferredTime: varchar('preferred_time', { length: 5 }),
+    plannedCalories: integer('planned_calories'),
+    plannedProtein: integer('planned_protein'),
+    active: boolean('active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('meal_templates_user_sort_idx').on(table.userId, table.sortOrder),
+    unique('meal_templates_user_id_id_unique').on(table.userId, table.id),
+  ],
+);
+
+export const mealLogs = pgTable(
+  'meal_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    mealId: uuid('meal_id').notNull(),
+    date: date('date').notNull(),
+    status: varchar('status', { length: 20 }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique('meal_logs_meal_date_unique').on(table.mealId, table.date),
+    index('meal_logs_user_date_idx').on(table.userId, table.date),
+    foreignKey({
+      columns: [table.userId, table.mealId],
+      foreignColumns: [mealTemplates.userId, mealTemplates.id],
+      name: 'meal_logs_owner_fk',
+    }).onDelete('cascade'),
+  ],
+);
+
 export const userSettings = pgTable('user_settings', {
   userId: text('user_id')
     .primaryKey()
@@ -166,6 +236,7 @@ export const userSettings = pgTable('user_settings', {
   weekStartsOn: smallint('week_starts_on').notNull().default(1),
   theme: varchar('theme', { length: 20 }).notNull().default('system'),
   flexibleCapacityMinutes: integer('flexible_capacity_minutes'),
+  nutritionEnabled: boolean('nutrition_enabled').notNull().default(false),
 });
 
 // ---------------------------------------------------------------------------
@@ -184,6 +255,11 @@ export const usersRelations = relations(users, ({ many, one }) => ({
 export const habitsRelations = relations(habits, ({ one, many }) => ({
   user: one(users, { fields: [habits.userId], references: [users.id] }),
   entries: many(habitEntries),
+  scheduleRevisions: many(habitScheduleRevisions),
+}));
+
+export const habitScheduleRevisionsRelations = relations(habitScheduleRevisions, ({ one }) => ({
+  habit: one(habits, { fields: [habitScheduleRevisions.habitId], references: [habits.id] }),
 }));
 
 export const habitEntriesRelations = relations(habitEntries, ({ one }) => ({
