@@ -22,12 +22,16 @@ const sectionDetails: Record<keyof typeof sectionLabels, string> = {
 export function LifeOsSetup() {
   const formRef = useRef<HTMLFormElement>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [installedNeedsInput, setInstalledNeedsInput] = useState<string[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [state, installAction, installing] = useActionState(
     async (previous: LifeActionState, form: FormData) => {
       const outcome = await applyLifeTemplateAction(previous, form);
-      if (outcome.success) setPlan(null);
+      if (outcome.success) {
+        setInstalledNeedsInput(plan?.needsInput ?? []);
+        setPlan(null);
+      }
       return outcome;
     },
     {},
@@ -279,7 +283,33 @@ export function LifeOsSetup() {
         )}
         {state.success && (
           <div role="status" className="rounded-xl border p-4 text-sm space-y-3">
+            <h2 className="text-lg font-semibold">Your plan is ready to use</h2>
             <p>{state.success}</p>
+            <p>
+              Start with Today: choose a priority, see your schedule, and record work as you go.
+            </p>
+            <Link
+              href="/today"
+              className="inline-flex min-h-10 items-center rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground"
+            >
+              Open Today
+            </Link>
+            {installedNeedsInput.length > 0 && (
+              <details className="rounded-lg border p-3">
+                <summary className="cursor-pointer font-semibold">
+                  Personalize later ({installedNeedsInput.length})
+                </summary>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {installedNeedsInput.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <p className="text-xs text-muted-foreground">
+              You can use the plan now. Add real subjects, deadlines, and quantities when you know
+              them.
+            </p>
             <nav aria-label="Open your LifeOS" className="flex flex-wrap gap-3">
               {(
                 [

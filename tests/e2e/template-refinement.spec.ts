@@ -41,6 +41,9 @@ test('Life OS preview is read-only and repeat installation preserves existing re
   await page.locator('input[name="confirm"]').check();
   await page.getByRole('button', { name: 'Install selected setup' }).click();
   await expect(page.getByRole('status')).toContainText('Created');
+  await expect(page.getByRole('heading', { name: 'Your plan is ready to use' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Today' })).toBeVisible();
+  await expect(page.getByText(/Personalize later/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Preview changes' }).click();
   await expect(page.getByText('0 new', { exact: true })).toBeVisible();
