@@ -5,6 +5,46 @@ export type CalendarDay = {
   dayOfWeek: number;
 };
 
+export type DatedHabit = {
+  schedule: string;
+  startDate: string;
+  endDate?: string | null;
+  archived?: boolean;
+  scheduleRevisions?: {
+    effectiveDate: string;
+    schedule: string;
+    startDate: string;
+    endDate: string | null;
+    status: string;
+  }[];
+};
+
+/** A missing rule before a legacy baseline means the old schedule is unknown. */
+export function habitRuleOn(habit: DatedHabit, date: string) {
+  if (habit.scheduleRevisions) {
+    return (
+      habit.scheduleRevisions
+        .filter((revision) => revision.effectiveDate <= date)
+        .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))[0] ?? null
+    );
+  }
+  return {
+    ...habit,
+    effectiveDate: habit.startDate,
+    status: habit.archived ? 'archived' : 'active',
+  };
+}
+
+export function isHabitActiveOn(habit: DatedHabit, date: string) {
+  const rule = habitRuleOn(habit, date);
+  return Boolean(rule && rule.status === 'active' && inHabitRange(rule, date));
+}
+
+export function isFlexibleHabitOn(habit: DatedHabit, date: string) {
+  const rule = habitRuleOn(habit, date);
+  return Boolean(rule && isHabitActiveOn(habit, date) && isFlexibleWeekly(rule.schedule));
+}
+
 export function isScheduledWeekday(schedule: string, dayOfWeek: number): boolean {
   if (/^weekly:[1-7]$/.test(schedule)) return true;
   if (schedule === 'daily') return true;
@@ -21,32 +61,31 @@ export function isFlexibleWeekly(schedule: string): boolean {
   return /^weekly:[1-7]$/.test(schedule);
 }
 
-export function isFixedOccurrence(
-  habit: { schedule: string; startDate: string; endDate?: string | null },
-  date: string,
-  dayOfWeek: number,
-): boolean {
+export function isFixedOccurrence(habit: DatedHabit, date: string, dayOfWeek: number): boolean {
+  const rule = habitRuleOn(habit, date);
   return (
-    !isFlexibleWeekly(habit.schedule) &&
-    inHabitRange(habit, date) &&
-    isScheduledWeekday(habit.schedule, dayOfWeek)
+    rule !== null &&
+    isHabitActiveOn(habit, date) &&
+    !isFlexibleWeekly(rule.schedule) &&
+    isScheduledWeekday(rule.schedule, dayOfWeek)
   );
 }
 
 export function weeklyQuotaAttainment(
-  habit: { schedule: string; startDate: string; endDate?: string | null },
+  habit: DatedHabit,
   firstDay: string,
   completedDates: ReadonlySet<string>,
   cutoff: string,
   startsOn = 1,
 ) {
-  const quota = Number(habit.schedule.split(':')[1]);
-  if (!isFlexibleWeekly(habit.schedule)) return { goal: 0, completed: 0, achieved: false };
+  const rule = habitRuleOn(habit, cutoff);
+  if (!rule || !isFlexibleWeekly(rule.schedule)) return { goal: 0, completed: 0, achieved: false };
+  const quota = Number(rule.schedule.split(':')[1]);
   const start = weekStart(firstDay, startsOn);
   const [y, m, d] = start.split('-').map(Number);
   const eligible = Array.from({ length: 7 }, (_, offset) =>
     new Date(Date.UTC(y, m - 1, d + offset)).toISOString().slice(0, 10),
-  ).filter((date) => inHabitRange(habit, date));
+  ).filter((date) => isFlexibleHabitOn(habit, date));
   const goal = Math.min(quota, eligible.length);
   const completed = eligible.filter((date) => date <= cutoff && completedDates.has(date)).length;
   return { goal, completed, achieved: goal > 0 && completed >= goal };
@@ -67,7 +106,7 @@ export function weekStart(date: string, startsOn = 1): string {
 }
 
 export function scheduleStats(
-  habit: { schedule: string; startDate: string; endDate?: string | null },
+  habit: DatedHabit,
   days: readonly CalendarDay[],
   completedDates: ReadonlySet<string>,
   cutoff: string,
@@ -86,7 +125,7 @@ export function scheduleStats(
 }
 
 export function isGridApplicable(
-  habit: { schedule: string; startDate: string; endDate?: string | null },
+  habit: DatedHabit,
   day: CalendarDay,
   days: readonly CalendarDay[],
   completedDates: ReadonlySet<string>,
@@ -95,11 +134,14 @@ export function isGridApplicable(
   void days;
   void completedDates;
   void startsOn;
-  return inHabitRange(habit, day.date) && isScheduledWeekday(habit.schedule, day.dayOfWeek);
+  const rule = habitRuleOn(habit, day.date);
+  return Boolean(
+    rule && isHabitActiveOn(habit, day.date) && isScheduledWeekday(rule.schedule, day.dayOfWeek),
+  );
 }
 
 export function habitMonthProgress(
-  habit: { schedule: string; startDate: string; endDate?: string | null; monthlyTarget: number },
+  habit: DatedHabit & { monthlyTarget: number },
   days: CalendarDay[],
   completedDates: ReadonlySet<string>,
   today: string,

@@ -69,4 +69,167 @@ describe('schedule policy', () => {
     expect(toDateString(toZonedTime(instant, 'Asia/Colombo'))).toBe('2026-10-08');
     expect(toDateString(toZonedTime(instant, 'UTC'))).toBe('2026-10-07');
   });
+
+  it('keeps dated daily history through a future quota change, archive, and restore', () => {
+    const versioned = {
+      schedule: 'weekly:3',
+      startDate: '2026-12-28',
+      endDate: null,
+      archived: false,
+      scheduleRevisions: [
+        {
+          effectiveDate: '2026-12-28',
+          schedule: 'daily',
+          startDate: '2026-12-28',
+          endDate: null,
+          status: 'active',
+        },
+        {
+          effectiveDate: '2027-01-04',
+          schedule: 'weekly:3',
+          startDate: '2026-12-28',
+          endDate: null,
+          status: 'active',
+        },
+        {
+          effectiveDate: '2027-01-11',
+          schedule: 'weekly:3',
+          startDate: '2026-12-28',
+          endDate: null,
+          status: 'archived',
+        },
+        {
+          effectiveDate: '2027-01-18',
+          schedule: 'weekly:3',
+          startDate: '2026-12-28',
+          endDate: null,
+          status: 'active',
+        },
+      ],
+    };
+    const days = ['2026-12-31', '2027-01-01', '2027-01-02'].map((date) => ({
+      date,
+      day: Number(date.slice(-2)),
+      weekday: '',
+      dayOfWeek: new Date(`${date}T12:00:00Z`).getUTCDay(),
+    }));
+    expect(
+      scheduleStats(
+        versioned,
+        days,
+        new Set(days.slice(0, 2).map((day) => day.date)),
+        '2027-01-02',
+      ),
+    ).toEqual({ total: 3, completed: 2 });
+    expect(isFixedOccurrence(versioned, '2027-01-05', 2)).toBe(false);
+    expect(
+      weeklyQuotaAttainment(versioned, '2027-01-05', new Set(['2027-01-05']), '2027-01-10'),
+    ).toEqual({ goal: 3, completed: 1, achieved: false });
+    expect(
+      isGridApplicable(
+        versioned,
+        { date: '2027-01-12', day: 12, weekday: '', dayOfWeek: 2 },
+        [],
+        new Set(),
+      ),
+    ).toBe(false);
+    expect(
+      isGridApplicable(
+        versioned,
+        { date: '2027-01-19', day: 19, weekday: '', dayOfWeek: 2 },
+        [],
+        new Set(),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps earlier flexible checks when a habit is restored during the same week', () => {
+    const versioned = {
+      schedule: 'weekly:3',
+      startDate: '2027-01-04',
+      endDate: null,
+      scheduleRevisions: [
+        {
+          effectiveDate: '2027-01-04',
+          schedule: 'weekly:3',
+          startDate: '2027-01-04',
+          endDate: null,
+          status: 'active',
+        },
+        {
+          effectiveDate: '2027-01-06',
+          schedule: 'weekly:3',
+          startDate: '2027-01-04',
+          endDate: null,
+          status: 'archived',
+        },
+        {
+          effectiveDate: '2027-01-08',
+          schedule: 'weekly:3',
+          startDate: '2027-01-04',
+          endDate: null,
+          status: 'active',
+        },
+      ],
+    };
+    expect(
+      weeklyQuotaAttainment(
+        versioned,
+        '2027-01-08',
+        new Set(['2027-01-04', '2027-01-08']),
+        '2027-01-08',
+      ),
+    ).toEqual({ goal: 3, completed: 2, achieved: false });
+  });
+
+  it('does not count earlier fixed-schedule checks toward a new weekly quota', () => {
+    const versioned = {
+      schedule: 'weekly:3',
+      startDate: '2027-01-04',
+      endDate: null,
+      scheduleRevisions: [
+        {
+          effectiveDate: '2027-01-04',
+          schedule: 'daily',
+          startDate: '2027-01-04',
+          endDate: null,
+          status: 'active',
+        },
+        {
+          effectiveDate: '2027-01-06',
+          schedule: 'weekly:3',
+          startDate: '2027-01-04',
+          endDate: null,
+          status: 'active',
+        },
+      ],
+    };
+    expect(
+      weeklyQuotaAttainment(
+        versioned,
+        '2027-01-08',
+        new Set(['2027-01-04', '2027-01-08']),
+        '2027-01-08',
+      ),
+    ).toEqual({ goal: 3, completed: 1, achieved: false });
+  });
+
+  it('does not infer missing obligations before a legacy baseline', () => {
+    const legacy = {
+      schedule: 'daily',
+      startDate: '2026-01-01',
+      endDate: null,
+      scheduleRevisions: [
+        {
+          effectiveDate: '2026-10-09',
+          schedule: 'daily',
+          startDate: '2026-01-01',
+          endDate: null,
+          status: 'active',
+        },
+      ],
+    };
+    expect(isFixedOccurrence(legacy, '2026-01-02', 5)).toBe(false);
+    expect(isFixedOccurrence(legacy, '2026-10-09', 5)).toBe(true);
+  });
 });

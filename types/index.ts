@@ -18,6 +18,16 @@ export interface SelectHabit {
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
+  scheduleRevisions?: HabitScheduleRevision[];
+}
+
+export interface HabitScheduleRevision {
+  effectiveDate: string;
+  schedule: string;
+  startDate: string;
+  endDate: string | null;
+  status: string;
+  source?: string;
 }
 
 export interface SelectHabitEntry {
