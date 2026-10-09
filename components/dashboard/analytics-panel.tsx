@@ -15,7 +15,6 @@ interface AnalyticsPanelProps {
   daysInMonth: Date[];
   today: Date;
   stats: CompletionStats;
-  weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   currentStreak: number;
   bestStreak: number;
   streakCutoff: string;
@@ -28,14 +27,13 @@ export function AnalyticsPanel({
   daysInMonth,
   today,
   stats,
-  weekStartsOn,
   currentStreak,
   bestStreak,
   streakCutoff,
   note,
 }: AnalyticsPanelProps) {
   const dailyProgress = calculateDailyProgress(habits, entries, daysInMonth, today);
-  const weeklySummary = calculateWeeklySummary(habits, entries, daysInMonth, weekStartsOn, today);
+  const weeklySummary = calculateWeeklySummary(habits, entries, daysInMonth, today);
   const topHabits = calculateTopHabits(habits, entries, daysInMonth, today, 5);
 
   return (

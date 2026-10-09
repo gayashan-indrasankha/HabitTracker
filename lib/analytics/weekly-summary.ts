@@ -1,34 +1,26 @@
 import type { SelectHabit, SelectHabitEntry, WeeklySummary } from '@/types';
 import { isFixedOccurrence } from './habit-month-progress';
-import { endOfWeek, eachWeekOfInterval, eachDayOfInterval, format } from 'date-fns';
+import { format } from 'date-fns';
 
 /**
- * Break a month into weeks and calculate completion rate per week.
+ * Match the tracker columns: days 1-7, 8-14, 15-21, 22-28, then the remainder.
  */
 export function calculateWeeklySummary(
   habits: SelectHabit[],
   entries: SelectHabitEntry[],
   daysInMonth: Date[],
-  weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6,
   today: Date,
 ): WeeklySummary[] {
   if (daysInMonth.length === 0) return [];
 
-  const monthStart = daysInMonth[0];
-  const monthEnd = daysInMonth[daysInMonth.length - 1];
-
-  const weekStarts = eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn });
-
   const entrySet = new Set(entries.filter((e) => e.completed).map((e) => `${e.habitId}:${e.date}`));
-
   const todayStr = format(today, 'yyyy-MM-dd');
 
-  return weekStarts.map((weekStart, idx) => {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn });
-    const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd }).filter(
-      (d) => d >= monthStart && d <= monthEnd,
-    );
+  const weeks: Date[][] = [];
+  for (let index = 0; index < daysInMonth.length; index += 7)
+    weeks.push(daysInMonth.slice(index, index + 7));
 
+  return weeks.map((daysInWeek, idx) => {
     let total = 0;
     let completed = 0;
 
