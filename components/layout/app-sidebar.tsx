@@ -22,7 +22,7 @@ const navigation = [
   { name: 'Habits', href: '/habits', icon: ListChecks },
   { name: 'Goals & Projects', href: '/goals', icon: Target },
   { name: 'Review & Insights', href: '/review', icon: ClipboardCheck },
-  { name: 'Notes', href: '/notes', icon: NotebookPen },
+  { name: 'Journal', href: '/notes', icon: NotebookPen },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

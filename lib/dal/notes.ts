@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, lt, desc, count, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dailyNotes } from '@/lib/db/schema';
 
@@ -35,15 +35,43 @@ export async function getNotesByUserAndMonth(userId: string, year: number, month
     .orderBy(desc(dailyNotes.date));
 }
 
-/**
- * Get all notes for a user (paginated for the notes page).
- */
-export async function getAllNotesByUser(userId: string) {
+/** Years with past journal entries, newest first. Today's entry is shown separately. */
+export async function getJournalYears(userId: string, today: string) {
+  const year = sql<number>`extract(year from ${dailyNotes.date})::int`;
   return db
+    .select({ year, entries: count() })
+    .from(dailyNotes)
+    .where(and(eq(dailyNotes.userId, userId), lt(dailyNotes.date, today)))
+    .groupBy(year)
+    .orderBy(desc(year));
+}
+
+/** Load one page of past entries without reading the full journal history. */
+export async function getJournalPage(
+  userId: string,
+  today: string,
+  year: number | null,
+  requestedPage: number,
+  pageSize = 12,
+) {
+  const filter = and(
+    eq(dailyNotes.userId, userId),
+    lt(dailyNotes.date, today),
+    ...(year === null
+      ? []
+      : [gte(dailyNotes.date, `${year}-01-01`), lt(dailyNotes.date, `${year + 1}-01-01`)]),
+  );
+  const [{ total }] = await db.select({ total: count() }).from(dailyNotes).where(filter);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(requestedPage, 1), pages);
+  const entries = await db
     .select()
     .from(dailyNotes)
-    .where(eq(dailyNotes.userId, userId))
-    .orderBy(desc(dailyNotes.date));
+    .where(filter)
+    .orderBy(desc(dailyNotes.date))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+  return { entries, total, page, pages };
 }
 
 /**
@@ -59,11 +87,4 @@ export async function upsertNote(userId: string, date: string, content: string) 
     })
     .returning();
   return result[0];
-}
-
-/**
- * Delete a note.
- */
-export async function deleteNote(userId: string, date: string) {
-  await db.delete(dailyNotes).where(and(eq(dailyNotes.userId, userId), eq(dailyNotes.date, date)));
 }

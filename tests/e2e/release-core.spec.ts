@@ -91,10 +91,14 @@ test('private JSON export includes owned records and excludes credentials and an
 }) => {
   const owner = await register(page, 'Export Owner');
   const privateNote = `private-note-${owner.tag}`;
+  await page.goto('/today');
+  await page.getByText('Finish your day').click();
+  await page.getByRole('textbox', { name: 'Daily journal entry' }).fill(privateNote);
+  await page.getByRole('button', { name: 'Save entry' }).click();
+  await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeDisabled();
   await page.goto('/notes');
-  await page.getByRole('textbox', { name: 'Daily note' }).fill(privateNote);
-  await page.getByRole('button', { name: 'Save Note' }).click();
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await expect(page.getByText(privateNote)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save entry' })).toHaveCount(0);
   const ownerResponse = await page.request.get('/api/export');
   expect(ownerResponse.status()).toBe(200);
   expect(ownerResponse.headers()['cache-control']).toContain('no-store');
