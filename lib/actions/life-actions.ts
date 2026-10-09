@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/session';
@@ -8,6 +8,9 @@ import { db } from '@/lib/db';
 import {
   dayPlans,
   goals,
+  milestoneCriteria,
+  milestoneReviewHistory,
+  milestoneReviews,
   metricEntries,
   projects,
   subjectAssessments,
@@ -314,6 +317,126 @@ export async function createTaskAction(
   await db.insert(tasks).values({ userId, ...parsed.data });
   refresh();
   return { success: 'Task added.' };
+}
+
+export async function deleteTaskAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const parsed = z
+    .object({ id: z.uuid(), confirmation: z.literal('delete') })
+    .safeParse({ id: form.get('id'), confirmation: form.get('confirmation') });
+  if (!parsed.success) return fail('Confirm the task you want to delete.');
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for('update');
+      const [task] = await tx
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data.id)))
+        .limit(1);
+      if (!task) return 'missing';
+      if (
+        !['todo', 'in_progress'].includes(task.status) ||
+        task.completedAt ||
+        task.actualMinutes !== null
+      )
+        return 'has-history';
+
+      const [criteria, review, reviewHistory] = await Promise.all([
+        tx
+          .select({ id: milestoneCriteria.id })
+          .from(milestoneCriteria)
+          .where(and(eq(milestoneCriteria.userId, userId), eq(milestoneCriteria.taskId, task.id)))
+          .limit(1),
+        tx
+          .select({ id: milestoneReviews.id })
+          .from(milestoneReviews)
+          .where(and(eq(milestoneReviews.userId, userId), eq(milestoneReviews.taskId, task.id)))
+          .limit(1),
+        tx
+          .select({ id: milestoneReviewHistory.id })
+          .from(milestoneReviewHistory)
+          .where(
+            and(
+              eq(milestoneReviewHistory.userId, userId),
+              eq(milestoneReviewHistory.taskId, task.id),
+            ),
+          )
+          .limit(1),
+      ]);
+      if (criteria.length || review.length || reviewHistory.length) return 'has-history';
+
+      await tx.delete(tasks).where(and(eq(tasks.userId, userId), eq(tasks.id, task.id)));
+      if (task.dailyPriority && task.scheduledDate) {
+        const remaining = await tx
+          .select({ id: tasks.id, dailyPriority: tasks.dailyPriority })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.userId, userId),
+              eq(tasks.scheduledDate, task.scheduledDate),
+              isNotNull(tasks.dailyPriority),
+            ),
+          );
+        remaining.sort((first, second) => (first.dailyPriority ?? 9) - (second.dailyPriority ?? 9));
+        await tx
+          .update(tasks)
+          .set({ dailyPriority: null })
+          .where(
+            and(
+              eq(tasks.userId, userId),
+              eq(tasks.scheduledDate, task.scheduledDate),
+              isNotNull(tasks.dailyPriority),
+            ),
+          );
+        for (let index = 0; index < remaining.length; index++) {
+          await tx
+            .update(tasks)
+            .set({ dailyPriority: index + 1 })
+            .where(and(eq(tasks.userId, userId), eq(tasks.id, remaining[index].id)));
+        }
+      }
+      return 'deleted';
+    });
+    if (result === 'missing') return fail('Task not found. Refresh and try again.');
+    if (result === 'has-history')
+      return fail('This task has recorded work or review history and cannot be deleted.');
+  } catch {
+    return fail('This task is linked to another record. Unlink it there before deleting.');
+  }
+
+  refresh();
+  revalidatePath('/goals/evidence');
+  return { success: 'Task deleted.' };
+}
+
+export async function planUnscheduledTaskAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const parsed = z
+    .object({ id: z.uuid(), date: z.iso.date() })
+    .safeParse({ id: form.get('id'), date: form.get('date') });
+  if (!parsed.success) return fail('Choose a task and a day.');
+  const changed = await db
+    .update(tasks)
+    .set({ scheduledDate: parsed.data.date, updatedAt: new Date() })
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        eq(tasks.id, parsed.data.id),
+        isNull(tasks.scheduledDate),
+        inArray(tasks.status, ['todo', 'in_progress']),
+      ),
+    )
+    .returning({ id: tasks.id });
+  if (!changed.length) return fail('This task was already planned or is no longer available.');
+  refresh();
+  return { success: 'Task added to the week.' };
 }
 
 export async function editTaskAction(_: LifeActionState, form: FormData): Promise<LifeActionState> {
@@ -1053,6 +1176,9 @@ export async function updateOccurrenceAction(
     allowOverlap: checked(form, 'allowOverlap'),
   });
   if (!parsed.success) return invalid(parsed.error);
+  const completeLinkedTask = form.get('completeLinkedTask') === 'yes';
+  if (completeLinkedTask && parsed.data.status !== 'completed')
+    return fail('A linked task can only be completed with its session.');
   const settings = await getUserSettings(userId);
   const result = await db.transaction(async (db) => {
     await db.execute(
@@ -1084,6 +1210,20 @@ export async function updateOccurrenceAction(
         .limit(1)
     )[0];
     const rule = ruleOn(block, revisions, parsed.data.occurrenceDate);
+    const linkedTask =
+      completeLinkedTask && rule.taskId
+        ? (
+            await db
+              .select()
+              .from(tasks)
+              .where(and(eq(tasks.userId, userId), eq(tasks.id, rule.taskId)))
+              .limit(1)
+          )[0]
+        : null;
+    if (completeLinkedTask && !linkedTask)
+      return fail('The linked task is no longer available. Complete this session separately.');
+    if (linkedTask?.status === 'cancelled')
+      return fail('Restore the cancelled task before completing it.');
     if (
       (!occursOn(rule, parsed.data.occurrenceDate, true) && !previous) ||
       (rule.status !== 'active' &&
@@ -1169,7 +1309,16 @@ export async function updateOccurrenceAction(
         target: [timeBlockExceptions.blockId, timeBlockExceptions.occurrenceDate],
         set: { ...values, timeOffId: null, updatedAt: new Date() },
       });
-    return { success: 'Occurrence updated.' };
+    if (linkedTask && linkedTask.status !== 'done')
+      await db
+        .update(tasks)
+        .set({
+          status: 'done',
+          completedAt: linkedTask.completedAt ?? new Date(),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, linkedTask.id)));
+    return { success: linkedTask ? 'Session and linked task completed.' : 'Occurrence updated.' };
   });
   if (result.success && form.get('preview') !== 'yes') refresh();
   return result;

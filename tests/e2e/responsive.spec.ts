@@ -20,10 +20,10 @@ for (const width of [320, 390, 768, 1024, 1440]) {
 
     const routes = [
       ['/today', /Today|Thursday/],
-      ['/week', /Plan a realistic week/],
+      ['/week', /Your week/],
       ['/habits', /Habits/],
       ['/dashboard', /LifeOS/],
-      ['/goals', /Connect the work to the outcome/],
+      ['/goals', /Goals & projects/],
       ['/goals/evidence', /Evidence & career readiness/],
       ['/review', /Notice, learn, adjust/],
       ['/settings', /Settings/],

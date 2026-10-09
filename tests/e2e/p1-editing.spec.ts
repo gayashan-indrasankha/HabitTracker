@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('goal and project edits, priority management, day modes, and mobile controls persist', async ({
+test('goal and project edits, priority management, lighter day, and mobile controls persist', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -16,7 +16,7 @@ test('goal and project edits, priority management, day modes, and mobile control
   await page.getByLabel('Confirm password').fill('Editing-test-password-42');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
-  await page.goto('/goals');
+  await page.goto('/goals?view=goals');
 
   await page.getByText('Add a goal').click();
   const addGoal = page
@@ -48,6 +48,7 @@ test('goal and project edits, priority management, day modes, and mobile control
   await addGoal.getByRole('button', { name: 'Create goal' }).click();
   await expect(page.getByRole('heading', { name: `${goalName} second` })).toBeVisible();
 
+  await page.goto('/goals?view=projects');
   await page.getByText('Add a project').click();
   const addProject = page
     .locator('form')
@@ -74,16 +75,20 @@ test('goal and project edits, priority management, day modes, and mobile control
     'https://example.com/portfolio',
   );
 
+  await page.goto('/goals');
   for (const name of names) {
     const addTask = page
       .locator('form')
       .filter({ has: page.getByRole('button', { name: 'Add task' }) });
     if (!(await addTask.isVisible())) await page.getByText('Add a task').click();
     await addTask.locator('[name="title"]').fill(name);
+    if (!(await addTask.locator('[name="projectId"]').isVisible()))
+      await addTask.getByText('More task details').click();
     await addTask.locator('[name="projectId"]').selectOption({ label: `${projectName} edited` });
     await addTask.getByRole('button', { name: 'Add task' }).click();
     await expect(page.getByRole('heading', { name })).toBeVisible();
   }
+  await page.goto('/goals?view=projects');
   const linkedProject = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: `${projectName} edited` }) })
@@ -96,63 +101,65 @@ test('goal and project edits, priority management, day modes, and mobile control
   await linkedEdit.getByRole('button', { name: 'Save project' }).click();
   await expect(linkedEdit.getByRole('status')).toContainText('Project saved');
   await page.reload();
-  for (const name of names) await expect(page.getByRole('heading', { name })).toBeVisible();
   const persistedProject = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: `${projectName} edited` }) })
     .first();
   await persistedProject.getByText('Edit project').click();
-  await expect(persistedProject.locator('[name="goalId"]')).toHaveValue(
-    await page
-      .locator('li')
-      .filter({ has: page.getByRole('heading', { name: `${goalName} second` }) })
-      .first()
-      .locator('[name="id"]')
-      .first()
-      .inputValue(),
+  await expect(persistedProject.locator('[name="goalId"] option:checked')).toHaveText(
+    `${goalName} second`,
   );
+  await page.goto('/goals');
+  for (const name of names) await expect(page.getByRole('heading', { name })).toBeVisible();
   await page.goto('/today');
   for (let i = 0; i < 3; i++) {
     await page.getByRole('button', { name: 'Add to Today' }).click();
     await page.getByLabel('Search tasks').fill(names[i]);
     await page.getByRole('button', { name: 'Add to slot' }).click();
     await expect(page.locator('ol > li').nth(i)).toContainText(names[i]);
+    await expect(page.getByRole('button', { name: 'Add to Today' })).toBeVisible();
     await page.reload();
   }
   const slots = page
     .locator('section')
-    .filter({ has: page.getByRole('heading', { name: /three wins/ }) })
+    .filter({ has: page.getByRole('heading', { name: 'Focus tasks' }) })
     .locator('ol > li');
   await expect(slots.nth(0)).toContainText(names[0]);
   await expect(slots.nth(1)).toContainText(names[1]);
   await expect(slots.nth(2)).toContainText(names[2]);
-  await slots.nth(1).getByRole('button', { name: 'Move up' }).click();
+  await slots.nth(1).getByText('Task options').click();
+  await slots.nth(1).getByLabel('Swap with').selectOption('1');
+  await slots.nth(1).getByRole('button', { name: 'Swap tasks' }).click();
   await expect(slots.nth(0)).toContainText(names[1]);
   await page.getByRole('button', { name: 'Add to Today' }).click();
   await page.getByLabel('Search tasks').fill(names[3]);
   await page.getByLabel('Priority slot').selectOption('2');
+  await expect(page.getByRole('button', { name: 'Replace priority' })).toBeDisabled();
   await page.getByLabel(`Replace ${names[0]}`).check();
   await page.getByRole('button', { name: 'Replace priority' }).click();
   await expect(slots.nth(1)).toContainText(names[3]);
+  await page.reload();
+  await slots.nth(1).getByText('Task options').click();
   await slots.nth(1).getByRole('button', { name: 'Remove priority' }).click();
   await expect(slots.nth(1)).toContainText(names[2]);
-  await slots.nth(0).getByRole('button', { name: 'Complete' }).click();
-  await expect(slots.nth(0)).toContainText('done');
+  await slots.nth(0).getByRole('button', { name: 'Mark done' }).click();
+  await expect(slots.nth(0).getByRole('button', { name: 'Reopen' })).toBeVisible();
   await slots.nth(0).getByRole('button', { name: 'Reopen' }).click();
-  await expect(slots.nth(0)).toContainText('todo');
-  for (const mode of ['reduced', 'minimum', 'normal']) {
-    await page.getByLabel('Day mode').selectOption(mode);
-    await page.getByRole('button', { name: 'Update mode' }).click();
-    await page.reload();
-    await expect(slots.nth(0)).toContainText(names[1]);
-    await expect(slots.nth(1)).toContainText(names[2]);
-  }
-  await slots.nth(1).getByText('Reschedule or swap').click();
+  await expect(slots.nth(0).getByRole('button', { name: 'Mark done' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show less today' }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Show full day' })).toBeVisible();
+  await expect(slots.nth(0)).toContainText(names[1]);
+  await expect(slots.nth(1)).toContainText(names[2]);
+  await page.getByRole('button', { name: 'Show full day' }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Show less today' })).toBeVisible();
+  await slots.nth(1).getByText('Task options').click();
   const reschedule = slots
     .nth(1)
     .locator('form')
     .filter({ has: page.getByRole('button', { name: 'Reschedule' }) });
-  await reschedule.locator('[name="scheduledDate"]').fill('2026-10-09');
+  await reschedule.locator('[name="scheduledDate"]').fill('2026-10-10');
   await reschedule.getByRole('button', { name: 'Reschedule' }).click();
   await expect(slots.nth(1)).toContainText('Empty slot');
   await page.reload();
@@ -160,8 +167,9 @@ test('goal and project edits, priority management, day modes, and mobile control
   await expect(slots.nth(1)).toContainText('Empty slot');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: 'Add to Today' })).toBeVisible();
-  await page.goto('/goals');
-  await expect(page.getByText('Edit project')).toBeVisible();
+  await slots.nth(0).getByText('Task options').click();
+  await expect(slots.nth(0).getByRole('button', { name: 'Reschedule' })).toBeVisible();
+  await page.goto('/goals?view=goals');
   const editedGoalRow = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: `${goalName} edited` }) })
@@ -173,6 +181,7 @@ test('goal and project edits, priority management, day modes, and mobile control
   await expect(page.getByRole('button', { name: 'Restore goal' })).toBeVisible();
   await page.getByRole('button', { name: 'Restore goal' }).click();
   await expect(page.getByRole('heading', { name: `${goalName} edited` })).toBeVisible();
+  await page.goto('/goals?view=projects');
   const editedProjectRow = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: `${projectName} edited` }) })
@@ -198,6 +207,7 @@ test('future weekday and metadata edits keep a completed earlier occurrence', as
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   await page.goto('/week?date=2026-10-05');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   const add = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add block' }) });
   await add.locator('[name="title"]').fill(title);
   await add.locator('[name="localStartTime"]').fill('09:00');
@@ -230,11 +240,13 @@ test('future weekday and metadata edits keep a completed earlier occurrence', as
   await edit.getByRole('button', { name: 'Save block' }).click();
   await expect(series.getByRole('status')).toContainText('Time block edited');
   await page.reload();
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: title }).first()).toContainText(
     'completed',
   );
   await expect(page.locator('article').filter({ hasText: title }).first()).toContainText('09:00');
   await page.goto('/week?date=2026-10-12');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(page.locator('article').filter({ hasText: `${title} changed` })).toHaveCount(1);
   await expect(
     page
@@ -269,6 +281,7 @@ test('future weekday and metadata edits keep a completed earlier occurrence', as
   await preview.getByRole('button', { name: 'Check conflicts' }).click();
   await expect(preview.getByRole('alert')).toContainText('Overlaps');
   await page.goto('/week?date=2026-10-19');
+  await page.getByText('Time blocks and detailed planning (optional)').click();
   await expect(
     page
       .locator('article')
@@ -296,7 +309,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
     await expect(target).toHaveURL(/\/dashboard/, { timeout: 90_000 });
   }
   async function createRecords(target: typeof page, prefix: string) {
-    await target.goto('/goals');
+    await target.goto('/goals?view=goals');
     await target.getByText('Add a goal').click();
     const goalCreate = target
       .locator('form')
@@ -313,6 +326,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
       .filter({ has: target.getByRole('button', { name: 'Save goal' }) });
     const goalId = await goalEdit.locator('[name="id"]').inputValue();
 
+    await target.goto('/goals?view=projects');
     await target.getByText('Add a project').click();
     const projectCreate = target
       .locator('form')
@@ -329,6 +343,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
       .filter({ has: target.getByRole('button', { name: 'Save project' }) });
     const projectId = await projectEdit.locator('[name="id"]').inputValue();
 
+    await target.goto('/goals');
     await target.getByText('Add a task').click();
     const taskCreate = target
       .locator('form')
@@ -346,6 +361,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
     const taskId = await taskEdit.locator('[name="id"]').inputValue();
 
     await target.goto('/week?date=2026-10-05');
+    await target.getByText('Time blocks and detailed planning (optional)').click();
     const blockCreate = target
       .locator('form')
       .filter({ has: target.getByRole('button', { name: 'Add block' }) });
@@ -374,7 +390,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
     const other = await otherContext.newPage();
     await register(other, 'Other P1');
     await createRecords(other, `Other ${tag}`);
-    await other.goto('/goals');
+    await other.goto('/goals?view=goals');
     const otherGoal = other
       .locator('li')
       .filter({ has: other.getByRole('heading', { name: `Other ${tag} goal` }) })
@@ -389,6 +405,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
     await goalForm.getByRole('button', { name: 'Save goal' }).click();
     await expect(goalForm.getByRole('alert')).toContainText('Goal not found');
 
+    await other.goto('/goals?view=projects');
     const otherProject = other
       .locator('li')
       .filter({ has: other.getByRole('heading', { name: `Other ${tag} project` }) })
@@ -403,6 +420,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
     await projectForm.getByRole('button', { name: 'Save project' }).click();
     await expect(projectForm.getByRole('alert')).toContainText('Project not found');
 
+    await other.goto('/goals');
     const otherTask = other
       .locator('li')
       .filter({ has: other.getByRole('heading', { name: `Other ${tag} task` }) })
@@ -430,6 +448,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
     await expect(priorityForm.getByRole('alert')).toContainText('Task is unavailable');
 
     await other.goto('/week?date=2026-10-05');
+    await other.getByText('Time blocks and detailed planning (optional)').click();
     const otherBlock = other
       .locator('li')
       .filter({ hasText: `Other ${tag} block` })

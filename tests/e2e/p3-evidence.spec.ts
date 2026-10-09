@@ -18,7 +18,8 @@ test('academic practice and milestone acceptance persist separately from grades 
   test.setTimeout(240_000);
   test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
   const tag = await register(page, 'p3-academic');
-  await page.goto('/goals');
+  await page.goto('/goals?view=study');
+  await page.getByText('Add your subjects').click();
   const subject = page
     .locator('form')
     .filter({ has: page.getByRole('button', { name: 'Save subject' }) })
@@ -63,7 +64,7 @@ test('academic practice and milestone acceptance persist separately from grades 
   await expect(topic).toContainText('Needs review');
   await expect(topic).toContainText('Actual grade: Not recorded');
 
-  await page.goto('/goals');
+  await page.goto('/goals?view=projects');
   await page.getByText('Add a project').click();
   const project = page
     .locator('form')
@@ -71,9 +72,11 @@ test('academic practice and milestone acceptance persist separately from grades 
   await project.locator('[name="name"]').fill(`Portfolio ${tag}`);
   await project.getByRole('button', { name: 'Create project' }).click();
   await expect(page.getByRole('heading', { name: `Portfolio ${tag}` })).toBeVisible();
+  await page.goto('/goals');
   await page.getByText('Add a task').click();
   const task = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add task' }) });
   await task.locator('[name="title"]').fill(`Auth milestone ${tag}`);
+  await task.getByText('More task details').click();
   await task.locator('[name="projectId"]').selectOption({ label: `Portfolio ${tag}` });
   await task.locator('[name="isMilestone"]').check();
   await task.getByRole('button', { name: 'Add task' }).click();
@@ -111,6 +114,7 @@ test('academic practice and milestone acceptance persist separately from grades 
   await expect(milestone).toContainText('Quality meets criteria');
   await expect(milestone).toContainText('Task todo');
   await page.goto('/review?week=2026-10-05');
+  await page.getByText('Explore goal evidence').click();
   await expect(page.getByRole('heading', { name: 'Evidence across goals' })).toBeVisible();
   await expect(page.getByText(/1 topics practised/)).toBeVisible();
 });
