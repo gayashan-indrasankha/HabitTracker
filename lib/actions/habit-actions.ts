@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth/session';
+import { getUserSettings } from '@/lib/dal/user-settings';
+import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
 import { HabitCreateSchema, HabitUpdateSchema } from '@/lib/validations/habit';
 import {
   createHabit,
@@ -101,11 +103,19 @@ export async function updateHabitAction(
 
   const existing = await getHabitByIdAndUser(habitId, userId);
   if (!existing) return { error: 'Habit not found' };
+  const today = toDateString(getTodayInTimezone((await getUserSettings(userId)).timezone));
+  const effectiveDate = formData.get('effectiveDate');
+  if (
+    typeof effectiveDate !== 'string' ||
+    !z.iso.date().safeParse(effectiveDate).success ||
+    effectiveDate < today
+  )
+    return { fieldErrors: { effectiveDate: ['Choose today or a future effective date.'] } };
   const nextStart = parsed.data.startDate ?? existing.startDate;
   const nextEnd = parsed.data.endDate === undefined ? existing.endDate : parsed.data.endDate;
   if (nextEnd && nextEnd < nextStart)
     return { fieldErrors: { endDate: ['End date must be on or after the start date'] } };
-  const updated = await updateHabit(habitId, userId, parsed.data);
+  const updated = await updateHabit(habitId, userId, parsed.data, effectiveDate);
   if (!updated) return { error: 'Habit not found' };
 
   revalidatePath('/habits');
@@ -121,7 +131,8 @@ export async function archiveHabitAction(habitId: string): Promise<HabitActionSt
     return { error: 'Unauthorized' };
   }
 
-  const result = await archiveHabit(habitId, userId);
+  const today = toDateString(getTodayInTimezone((await getUserSettings(userId)).timezone));
+  const result = await archiveHabit(habitId, userId, today);
   if (!result) return { error: 'Habit not found' };
 
   revalidatePath('/habits');
@@ -137,10 +148,12 @@ export async function unarchiveHabitAction(habitId: string): Promise<HabitAction
     return { error: 'Unauthorized' };
   }
 
-  const result = await unarchiveHabit(habitId, userId);
+  const today = toDateString(getTodayInTimezone((await getUserSettings(userId)).timezone));
+  const result = await unarchiveHabit(habitId, userId, today);
   if (!result) return { error: 'Habit not found' };
 
   revalidatePath('/habits');
+  revalidatePath('/dashboard');
   return { success: true };
 }
 

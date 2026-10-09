@@ -56,11 +56,17 @@ interface HabitFormProps {
   action: (prevState: HabitActionState, formData: FormData) => Promise<HabitActionState>;
   defaultValues?: Partial<HabitCreateInput>;
   defaultStartDate: string;
+  effectiveDateDefault?: string;
 }
 
 const initialState: HabitActionState = {};
 
-export function HabitForm({ action, defaultValues, defaultStartDate }: HabitFormProps) {
+export function HabitForm({
+  action,
+  defaultValues,
+  defaultStartDate,
+  effectiveDateDefault,
+}: HabitFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
 
   const {
@@ -275,6 +281,28 @@ export function HabitForm({ action, defaultValues, defaultStartDate }: HabitForm
               </p>
             )}
           </div>
+
+          {effectiveDateDefault && (
+            <div className="space-y-1.5">
+              <Label htmlFor="effectiveDate">Apply schedule changes from</Label>
+              <Input
+                id="effectiveDate"
+                name="effectiveDate"
+                type="date"
+                min={effectiveDateDefault}
+                defaultValue={effectiveDateDefault}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Earlier schedule and completed days stay in history.
+              </p>
+              {state.fieldErrors?.effectiveDate && (
+                <p role="alert" className="text-sm text-destructive">
+                  {state.fieldErrors.effectiveDate[0]}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Server error */}
           {state.error && (

@@ -7,7 +7,7 @@ import { upsertHabitEntry, deleteHabitEntry } from '@/lib/dal/habit-entries';
 import { getHabitByIdAndUser } from '@/lib/dal/habits';
 import { getUserSettings } from '@/lib/dal/user-settings';
 import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
-import { isScheduledWeekday } from '@/lib/analytics/habit-month-progress';
+import { isGridApplicable } from '@/lib/analytics/habit-month-progress';
 
 export type ToggleEntryState = {
   error?: string;
@@ -55,9 +55,7 @@ export async function toggleEntryAction(
   const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
   if (
     date > today ||
-    date < habit.startDate ||
-    (habit.endDate && date > habit.endDate) ||
-    !isScheduledWeekday(habit.schedule, dayOfWeek)
+    !isGridApplicable(habit, { date, day: day, weekday: '', dayOfWeek }, [], new Set())
   ) {
     return { error: 'This date is not available for this habit' };
   }

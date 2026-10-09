@@ -1,6 +1,8 @@
 import { requireUser } from '@/lib/auth/session';
 import { notFound } from 'next/navigation';
 import { getHabitByIdAndUser } from '@/lib/dal/habits';
+import { getUserSettings } from '@/lib/dal/user-settings';
+import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
 import { updateHabitAction } from '@/lib/actions/habit-actions';
 import { HabitForm } from '@/components/habits/habit-form';
 
@@ -20,6 +22,7 @@ export default async function EditHabitPage({ params }: EditHabitPageProps) {
   const { id } = await params;
   const habit = await getHabitByIdAndUser(id, user.id);
   if (!habit) notFound();
+  const today = toDateString(getTodayInTimezone((await getUserSettings(user.id)).timezone));
 
   // Bind the habit ID into the action
   const boundAction = updateHabitAction.bind(null, habit.id);
@@ -51,6 +54,7 @@ export default async function EditHabitPage({ params }: EditHabitPageProps) {
           endDate: habit.endDate ?? '',
         }}
         defaultStartDate={habit.startDate}
+        effectiveDateDefault={today}
       />
     </div>
   );
