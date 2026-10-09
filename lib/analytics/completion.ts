@@ -26,7 +26,6 @@ export function calculateCompletionRate(
   const todayStr = formatDateStr(today);
 
   for (const habit of habits) {
-    if (habit.archived) continue;
     for (const day of daysInMonth) {
       const dayStr = formatDateStr(day);
       // Don't count future days

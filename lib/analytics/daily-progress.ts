@@ -22,7 +22,7 @@ export function calculateDailyProgress(
 
     if (dayStr <= todayStr) {
       for (const habit of habits) {
-        if (habit.archived || !isFixedOccurrence(habit, dayStr, day.getDay())) continue;
+        if (!isFixedOccurrence(habit, dayStr, day.getDay())) continue;
         total++;
         if (entrySet.has(`${habit.id}:${dayStr}`)) count++;
       }
