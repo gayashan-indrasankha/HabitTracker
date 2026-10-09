@@ -41,6 +41,14 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await page.reload();
   await expect(page.getByRole('row', { name: new RegExp(habitName) })).toContainText('0 / 1');
 
+  const historicalHabitName = `Historical calendar ${suffix}`;
+  await page.goto('/habits/new');
+  await page.getByLabel(/Habit Name/).fill(historicalHabitName);
+  await page.getByLabel(/Monthly Target/).fill('1');
+  await page.getByLabel('Start Date').fill('2016-01-01');
+  await page.getByRole('button', { name: 'Save Habit' }).click();
+  await expect(page).toHaveURL(/\/habits$/);
+
   for (const [month, count, weekLengths] of [
     ['2025-02', 28, [7, 7, 7, 7]],
     ['2024-02', 29, [7, 7, 7, 7, 1]],
@@ -72,6 +80,7 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await page.goto('/dashboard?month=2016-02');
   const februaryHeight = await weekHeader.evaluate((row) => row.getBoundingClientRect().height);
   expect(februaryHeight).toBeCloseTo(octoberHeight, 0);
+  await expect(page.getByRole('row', { name: new RegExp(habitName) })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const scrollArea = page.getByLabel('Scroll monthly habit tracker horizontally');
@@ -84,5 +93,7 @@ test('monthly tracker toggles and persists completion across desktop and mobile'
   await scrollArea.evaluate((element) => {
     element.scrollLeft = element.scrollWidth;
   });
-  await expect(page.getByRole('rowheader', { name: new RegExp(habitName) })).toBeVisible();
+  await expect(
+    page.getByRole('rowheader', { name: new RegExp(historicalHabitName) }),
+  ).toBeVisible();
 });

@@ -37,6 +37,9 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     const nav = page.getByRole('navigation', {
       name: width < 1024 ? 'Mobile navigation' : 'Main navigation',
     });
+    if (width < 1024) {
+      await expect(nav.getByRole('link', { name: 'Settings' })).toBeInViewport();
+    }
     await expect(nav.getByRole('link').first()).toHaveText('Home');
     await nav.getByRole('link', { name: 'Home' }).click();
     await expect(page).toHaveURL(/\/dashboard/);

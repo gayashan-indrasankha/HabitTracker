@@ -81,8 +81,10 @@ try {
   );
   await expect(window).toHaveURL(/\/dashboard/, { timeout: 20_000 });
   await expect(
-    window.getByRole('navigation', { name: 'Main navigation' }).getByRole('link').first(),
-  ).toHaveText('Home');
+    window
+      .getByRole('navigation', { name: /^(Main|Mobile) navigation$/ })
+      .getByRole('link', { name: 'Home' }),
+  ).toBeVisible();
   const origin = new URL(window.url()).origin;
   assert.match(origin, /^http:\/\/127\.0\.0\.1:\d+$/);
   await window.goto(`${origin}/habits/new`);
