@@ -16,8 +16,8 @@ const sections = [
     'SE and DevOps portfolio',
     'Shared core, two projects, practical coding and applied DevOps blocks.',
   ],
-  ['interview', 'Interview preparation', 'Two technical practices and a weekly mock.'],
-  ['english', 'English', 'Daily practice plus spoken explanation and simulation.'],
+  ['interview', 'Interview preparation', 'Thursday technical practice and one Sunday mock.'],
+  ['english', 'English', 'Daily practice plus a Saturday spoken explanation.'],
   [
     'fitness',
     'Fitness',
@@ -43,6 +43,11 @@ export default async function LifeOsSetupPage() {
           Preview and choose the sections you want. Nothing is added until you apply them. Existing
           edits are kept if you apply again. New settings use Asia/Colombo; saved timezone settings
           stay as they are.
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The lighter Sunday pattern applies to new template blocks only. If you already applied the
+          template, use Week to move or edit your existing sessions from a future date; applying
+          setup again will not overwrite them.
         </p>
       </header>
       <section className="rounded-2xl border bg-card p-5">

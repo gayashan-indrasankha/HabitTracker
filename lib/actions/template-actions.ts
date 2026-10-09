@@ -5,7 +5,15 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { goals, habits, projects, subjects, timeBlocks, userSettings } from '@/lib/db/schema';
+import {
+  goals,
+  habitScheduleRevisions,
+  habits,
+  projects,
+  subjects,
+  timeBlocks,
+  userSettings,
+} from '@/lib/db/schema';
 import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
 import type { LifeActionState } from './life-actions';
 
@@ -117,7 +125,7 @@ export async function applyLifeTemplateAction(
         schedule: string,
         monthlyTarget: number,
       ) {
-        await tx
+        const [created] = await tx
           .insert(habits)
           .values({
             userId,
@@ -128,7 +136,17 @@ export async function applyLifeTemplateAction(
             monthlyTarget,
             startDate: today,
           })
-          .onConflictDoNothing();
+          .onConflictDoNothing()
+          .returning({ id: habits.id });
+        if (created)
+          await tx.insert(habitScheduleRevisions).values({
+            userId,
+            habitId: created.id,
+            effectiveDate: today,
+            schedule,
+            startDate: today,
+            status: 'active',
+          });
       }
       if (input.sections.includes('university')) {
         await goal('university', 'University', 'Build strong results in five subjects');
@@ -218,7 +236,7 @@ export async function applyLifeTemplateAction(
           'devops-practice',
           'Apply DevOps learning',
           'Career',
-          '0000101',
+          '0001100',
           '11:30',
           '13:00',
         );
@@ -229,7 +247,7 @@ export async function applyLifeTemplateAction(
           'interview-practice',
           'Technical interview practice',
           'Interview Preparation',
-          '0001010',
+          '0001000',
           '19:00',
           '19:45',
         );
@@ -238,8 +256,8 @@ export async function applyLifeTemplateAction(
           'Mock interview',
           'Interview Preparation',
           '0000001',
-          '15:00',
-          '15:45',
+          '15:30',
+          '16:15',
         );
       }
       if (input.sections.includes('english')) {
@@ -249,17 +267,9 @@ export async function applyLifeTemplateAction(
           'technical-explanation',
           'Explain a technical topic aloud',
           'Communication',
-          '0000001',
-          '19:00',
-          '19:30',
-        );
-        await block(
-          'english-interview',
-          'English interview simulation',
-          'Communication',
-          '0000001',
-          '16:00',
-          '16:30',
+          '0000010',
+          '14:00',
+          '14:30',
         );
       }
       if (input.sections.includes('fitness')) {
