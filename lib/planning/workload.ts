@@ -1,4 +1,11 @@
 import type { BlockOccurrence } from './time-blocks';
+import {
+  occursOn,
+  ruleOn,
+  type BlockException,
+  type BlockRevision,
+  type BlockRule,
+} from './time-blocks';
 
 type TaskWork = {
   id: string;
@@ -10,6 +17,67 @@ type TaskWork = {
 };
 type RecordedSession = { blockId: string; occurrenceDate: string; actualMinutes: number | null };
 type TimeOff = { date: string; status: string; type: string };
+
+export type TaskSessionLink = {
+  taskId: string;
+  blockId: string;
+  originalDate: string;
+  date: string;
+  status: string;
+  actualMinutes: number | null;
+};
+
+/** Resolve linked work by task ID and stable occurrence identity, including moves outside the displayed week. */
+export function taskSessionLinks(
+  tasks: TaskWork[],
+  blocks: BlockRule[],
+  revisions: BlockRevision[],
+  exceptions: (BlockException & { actualMinutes: number | null })[],
+): TaskSessionLink[] {
+  const links: TaskSessionLink[] = [];
+  const byIdentity = new Map(
+    exceptions.map((item) => [`${item.blockId}:${item.occurrenceDate}`, item]),
+  );
+  for (const task of tasks) {
+    if (!task.scheduledDate) continue;
+    for (const block of blocks) {
+      const rule = ruleOn(block, revisions, task.scheduledDate);
+      if (rule.taskId !== task.id) continue;
+      const exception = byIdentity.get(`${block.id}:${task.scheduledDate}`);
+      if (!exception && !occursOn(rule, task.scheduledDate)) continue;
+      links.push({
+        taskId: task.id,
+        blockId: block.id,
+        originalDate: task.scheduledDate,
+        date: exception?.overrideDate ?? task.scheduledDate,
+        status: exception?.status ?? 'planned',
+        actualMinutes: exception?.actualMinutes ?? null,
+      });
+    }
+  }
+  // Recorded sessions on other dates still supersede a task's single actual-minute log.
+  for (const exception of exceptions) {
+    const block = blocks.find((item) => item.id === exception.blockId);
+    if (!block) continue;
+    const taskId = ruleOn(block, revisions, exception.occurrenceDate).taskId;
+    if (!taskId || !tasks.some((task) => task.id === taskId)) continue;
+    if (
+      links.some(
+        (item) => item.blockId === block.id && item.originalDate === exception.occurrenceDate,
+      )
+    )
+      continue;
+    links.push({
+      taskId,
+      blockId: block.id,
+      originalDate: exception.occurrenceDate,
+      date: exception.overrideDate ?? exception.occurrenceDate,
+      status: exception.status,
+      actualMinutes: exception.actualMinutes,
+    });
+  }
+  return links;
+}
 
 export function clockMinutes(start: string, end: string) {
   const [sh, sm] = start.split(':').map(Number);
@@ -24,8 +92,17 @@ export function weeklyWorkload(
   records: RecordedSession[],
   timeOff: TimeOff[],
   capacityMinutes: number | null,
+  taskLinks: TaskSessionLink[] = [],
 ) {
-  const linked = new Set(occurrences.map((item) => item.taskId).filter(Boolean));
+  const linked = new Set([
+    ...occurrences
+      .filter((item) =>
+        tasks.some((task) => task.id === item.taskId && task.scheduledDate === item.originalDate),
+      )
+      .map((item) => item.taskId)
+      .filter((id): id is string => Boolean(id)),
+    ...taskLinks.map((item) => item.taskId),
+  ]);
   const actualByOccurrence = new Map(
     records.map((item) => [`${item.blockId}:${item.occurrenceDate}`, item.actualMinutes]),
   );
@@ -49,17 +126,22 @@ export function weeklyWorkload(
       .map((item) => actualByOccurrence.get(`${item.id}:${item.originalDate}`))
       .filter((value): value is number => value != null);
     const linkedTaskActual = tasks
-      .filter(
-        (task) =>
-          task.scheduledDate === date &&
-          linked.has(task.id) &&
-          task.actualMinutes != null &&
-          !sessions.some(
-            (session) =>
-              session.taskId === task.id &&
-              actualByOccurrence.get(`${session.id}:${session.originalDate}`) != null,
-          ),
-      )
+      .filter((task) => {
+        if (!linked.has(task.id) || task.actualMinutes == null) return false;
+        const links = taskLinks.filter((item) => item.taskId === task.id);
+        const hasSessionActual =
+          links.some((item) => item.actualMinutes != null) ||
+          occurrences.some(
+            (item) =>
+              item.taskId === task.id &&
+              actualByOccurrence.get(`${item.id}:${item.originalDate}`) != null,
+          );
+        // A task's single actual log is a fallback, placed on its linked session's effective date.
+        const taskDate =
+          links.find((item) => item.originalDate === task.scheduledDate)?.date ??
+          task.scheduledDate;
+        return !hasSessionActual && taskDate === date;
+      })
       .map((task) => task.actualMinutes!);
     const actualMinutes =
       actualValues.reduce((sum, value) => sum + value, 0) +
