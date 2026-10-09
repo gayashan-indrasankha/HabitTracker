@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
 import { getBlocksForRange, getMetrics, getReview, getTasks } from '@/lib/dal/life';
-import { getActiveHabitsByUser } from '@/lib/dal/habits';
+import { getHistoricalHabitsByUser } from '@/lib/dal/habits';
 import { getEntriesByUserAndDateRange } from '@/lib/dal/habit-entries';
 import { getTodayInTimezone, toDateString, toZonedTime } from '@/lib/utils/date';
 import { isFixedOccurrence, weekStart } from '@/lib/analytics/habit-month-progress';
@@ -45,7 +45,7 @@ export default async function ReviewPage({
     getTasks(userId),
     getMetrics(userId),
     getBlocksForRange(userId, start, end),
-    getActiveHabitsByUser(userId),
+    getHistoricalHabitsByUser(userId),
     getEntriesByUserAndDateRange(userId, start, end),
   ]);
   let answers: Record<string, string> = {};
@@ -142,7 +142,9 @@ export default async function ReviewPage({
             {weightAverage ? `${weightAverage} kg` : 'No weight data'}
           </p>
           <p className="text-xs text-muted-foreground">
-            {weights.length} recorded weight measurements this week.
+            {weights.length} recorded weight measurements across {currentWeight?.measuredDays ?? 0}{' '}
+            measured {currentWeight?.measuredDays === 1 ? 'day' : 'days'} this week.
+            {currentWeight?.limited ? ' Limited data for this week.' : ''}
             {weightChange != null
               ? ` ${Number(weightChange) >= 0 ? '+' : ''}${weightChange} kg versus the prior weekly average.`
               : ' Add another week to see a trend.'}{' '}

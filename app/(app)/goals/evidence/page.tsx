@@ -952,9 +952,9 @@ export default async function EvidencePage({
         <p className="text-sm">
           Latest measured week:{' '}
           {trend.latest
-            ? `${trend.latest.average.toFixed(1)} kg (${trend.latest.days} measured days)`
+            ? `${trend.latest.average.toFixed(1)} kg (${trend.latest.limited ? 'Limited data — ' : ''}${trend.latest.measuredDays} measured ${trend.latest.measuredDays === 1 ? 'day' : 'days'})`
             : 'No measurements'}{' '}
-          · Previous measured week:{' '}
+          · Previous calendar week:{' '}
           {trend.previous ? `${trend.previous.average.toFixed(1)} kg` : 'No measurements'} ·
           Baseline: {trend.baseline == null ? 'No data' : `${trend.baseline.toFixed(1)} kg`}
           {trend.changeFromBaseline == null
@@ -962,11 +962,10 @@ export default async function EvidencePage({
             : ` · Change ${trend.changeFromBaseline >= 0 ? '+' : ''}${trend.changeFromBaseline.toFixed(1)} kg`}
           {target == null ? '' : ` · Target ${target} kg`}
         </p>
-        {trend.limited && (
-          <p className="text-xs text-muted-foreground">
-            Limited data: fewer than three measured days in the recent chart.
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          Coverage is based on measured days in each week; three days is the reference for a fuller
+          sample.
+        </p>
         <details>
           <summary className="cursor-pointer font-semibold text-primary">
             Record actual weight

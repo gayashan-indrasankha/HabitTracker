@@ -124,14 +124,38 @@ describe('P3 evidence policies', () => {
     const monday = weightTrend(points, 1, 80);
     expect(monday.daily[0]).toEqual({ date: '2026-12-31', value: 71, samples: 2 });
     expect(monday.weekly).toEqual([
-      { date: '2026-12-28', average: 72, days: 2 },
-      { date: '2027-01-04', average: 74, days: 1 },
+      { date: '2026-12-28', average: 72, days: 2, measuredDays: 2, limited: true },
+      { date: '2027-01-04', average: 74, days: 1, measuredDays: 1, limited: true },
     ]);
     expect(monday.changeFromPrevious).toBe(2);
     expect(monday.changeFromBaseline).toBe(3);
     expect(monday.progressToTarget).toBeCloseTo(3 / 9);
     expect(weightTrend(points, 0, null).weekly[0].date).toBe('2026-12-27');
     expect(weightTrend([], 1, 80).latest).toBeNull();
+    expect(monday.limited).toBe(true);
+    const fuller = weightTrend(
+      [
+        { date: '2026-12-28', value: 70 },
+        { date: '2026-12-29', value: 71 },
+        { date: '2026-12-30', value: 72 },
+        { date: '2027-01-04', value: 74 },
+      ],
+      1,
+      80,
+    );
+    expect(fuller.weekly[0].limited).toBe(false);
+    expect(fuller.latest?.limited).toBe(true);
+    expect(fuller.limited).toBe(true);
+    expect(
+      weightTrend(
+        [
+          { date: '2026-12-21', value: 70 },
+          { date: '2027-01-04', value: 74 },
+        ],
+        1,
+        null,
+      ).previous,
+    ).toBeNull();
   });
   it('keeps saved opportunities separate from submitted and employer outcomes', () => {
     const rows = [

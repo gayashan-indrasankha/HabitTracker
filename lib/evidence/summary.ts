@@ -1,4 +1,5 @@
 import { weekStart } from '@/lib/analytics/habit-month-progress';
+import { addCalendarDays } from '@/lib/planning/time-blocks';
 
 export type TopicEvidence = { date: string; correct: number | null; total: number | null };
 export function validScoredAttempt(correct: number | null, total: number | null) {
@@ -109,6 +110,7 @@ export function topicIndicator(
 }
 
 export type WeightPoint = { date: string; value: number };
+export const WEIGHT_COVERAGE_DAYS = 3;
 export function weightTrend(
   points: WeightPoint[],
   weekStartsOn: number,
@@ -131,10 +133,14 @@ export function weightTrend(
       date,
       average: values.reduce((sum, item) => sum + item.value, 0) / values.length,
       days: values.length,
+      measuredDays: values.length,
+      limited: values.length < WEIGHT_COVERAGE_DAYS,
     };
   });
   const latest = weekly.at(-1) ?? null;
-  const previous = weekly.at(-2) ?? null;
+  const previous = latest
+    ? (weekly.find((item) => item.date === addCalendarDays(latest.date, -7)) ?? null)
+    : null;
   const baseline = baselinePoint?.value ?? daily[0]?.value ?? null;
   return {
     daily,
@@ -148,7 +154,7 @@ export function weightTrend(
       baseline == null || !latest || target == null || target <= baseline
         ? null
         : (latest.average - baseline) / (target - baseline),
-    limited: daily.length < 3,
+    limited: latest?.limited ?? true,
   };
 }
 
