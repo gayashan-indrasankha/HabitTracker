@@ -107,6 +107,8 @@ export default async function ReviewPage({
       ? (currentWeight.average - previousWeight.average).toFixed(1)
       : null;
   const categories = [...new Set(completedTasks.map((item) => item.area))];
+  const detailedPrompts = prompts.filter(([key]) => key !== 'obstacles' && key !== 'nextWins');
+  const hasDetailedAnswers = detailedPrompts.some(([key]) => Boolean(answers[key]?.trim()));
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header>
@@ -152,7 +154,14 @@ export default async function ReviewPage({
           </p>
         </div>
       </section>
-      <EvidenceReview userId={userId} start={start} end={end} today={today} />
+      <details className="rounded-2xl border bg-card p-4">
+        <summary className="min-h-10 cursor-pointer py-2 font-semibold text-primary">
+          Explore goal evidence
+        </summary>
+        <div className="mt-3">
+          <EvidenceReview userId={userId} start={start} end={end} today={today} />
+        </div>
+      </details>
       {categories.length > 0 && (
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="font-semibold">Finished tasks by life area</h2>
@@ -168,22 +177,43 @@ export default async function ReviewPage({
       <section className="rounded-2xl border bg-card p-5">
         <h2 className="text-xl font-bold">Your reflection</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Recorded activity gives context. Confirm your own interpretation.
+          A short review is enough. Add detail only where it helps.
         </p>
         <ActionForm action={saveReviewAction} submitLabel="Save review" className="space-y-4">
           <input type="hidden" name="weekStart" value={start} />
-          {prompts.map(([key, label]) => (
-            <label key={key} className="block text-sm font-medium">
-              {label}
-              <textarea
-                name={key}
-                defaultValue={answers[key] ?? ''}
-                maxLength={2000}
-                rows={key === 'nextWins' ? 3 : 2}
-                className="mt-1 w-full rounded-lg border bg-background p-3 font-normal"
-              />
-            </label>
-          ))}
+          {prompts
+            .filter(([key]) => key === 'obstacles' || key === 'nextWins')
+            .map(([key, label]) => (
+              <label key={key} className="block text-sm font-medium">
+                {label}
+                <textarea
+                  name={key}
+                  defaultValue={answers[key] ?? ''}
+                  maxLength={2000}
+                  rows={key === 'nextWins' ? 3 : 2}
+                  className="mt-1 w-full rounded-lg border bg-background p-3 font-normal"
+                />
+              </label>
+            ))}
+          <details className="rounded-xl border p-3" open={hasDetailedAnswers}>
+            <summary className="min-h-10 cursor-pointer py-2 font-semibold text-primary">
+              Add detail by life area (optional)
+            </summary>
+            <div className="mt-3 space-y-4">
+              {detailedPrompts.map(([key, label]) => (
+                <label key={key} className="block text-sm font-medium">
+                  {label}
+                  <textarea
+                    name={key}
+                    defaultValue={answers[key] ?? ''}
+                    maxLength={2000}
+                    rows={2}
+                    className="mt-1 w-full rounded-lg border bg-background p-3 font-normal"
+                  />
+                </label>
+              ))}
+            </div>
+          </details>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="complete" defaultChecked={Boolean(review?.completedAt)} />{' '}
             Mark this review complete
@@ -191,15 +221,17 @@ export default async function ReviewPage({
         </ActionForm>
       </section>
       <section className="rounded-2xl border bg-card p-5">
-        <h2 className="text-xl font-bold">Record a measurement</h2>
+        <h2 className="text-xl font-bold">Record body weight</h2>
         <p className="mb-3 text-sm text-muted-foreground">
-          Use actual measurements only. An unusual reading is information, not a failure.
+          Enter an actual measurement. An unusual reading is information, not a failure.
         </p>
         <ActionForm
           action={addMetricAction}
-          submitLabel="Record metric"
+          submitLabel="Save weight"
           className="grid gap-3 sm:grid-cols-2"
         >
+          <input type="hidden" name="type" value="Body weight" />
+          <input type="hidden" name="unit" value="kg" />
           <label className="text-sm">
             Date
             <input
@@ -211,24 +243,7 @@ export default async function ReviewPage({
             />
           </label>
           <label className="text-sm">
-            Metric
-            <input
-              name="type"
-              list="metric-types"
-              required
-              defaultValue="Body weight"
-              className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
-            />
-            <datalist id="metric-types">
-              <option value="Body weight" />
-              <option value="Focus minutes" />
-              <option value="Study minutes" />
-              <option value="English practice minutes" />
-              <option value="Sleep duration" />
-            </datalist>
-          </label>
-          <label className="text-sm">
-            Value
+            Weight (kg)
             <input
               type="number"
               name="value"
@@ -239,24 +254,74 @@ export default async function ReviewPage({
               className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
             />
           </label>
-          <label className="text-sm">
-            Unit
-            <input
-              name="unit"
-              required
-              defaultValue="kg"
-              className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
-            />
-          </label>
-          <label className="text-sm sm:col-span-2">
-            Note (optional)
-            <input
-              name="note"
-              maxLength={500}
-              className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
-            />
-          </label>
         </ActionForm>
+        <details className="mt-4 rounded-xl border p-3">
+          <summary className="min-h-10 cursor-pointer py-2 font-semibold text-primary">
+            Record another metric or add a note
+          </summary>
+          <ActionForm
+            action={addMetricAction}
+            submitLabel="Record metric"
+            className="grid gap-3 sm:grid-cols-2"
+          >
+            <label className="text-sm">
+              Date
+              <input
+                type="date"
+                name="date"
+                required
+                defaultValue={today}
+                className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
+              />
+            </label>
+            <label className="text-sm">
+              Metric
+              <input
+                name="type"
+                list="metric-types"
+                required
+                defaultValue="Body weight"
+                className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
+              />
+              <datalist id="metric-types">
+                <option value="Body weight" />
+                <option value="Focus minutes" />
+                <option value="Study minutes" />
+                <option value="English practice minutes" />
+                <option value="Sleep duration" />
+              </datalist>
+            </label>
+            <label className="text-sm">
+              Value
+              <input
+                type="number"
+                name="value"
+                min="0"
+                max="100000"
+                step="any"
+                required
+                className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
+              />
+            </label>
+            <label className="text-sm">
+              Unit
+              <input
+                name="unit"
+                required
+                defaultValue="kg"
+                className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
+              />
+            </label>
+            <label className="text-sm sm:col-span-2">
+              Note (optional)
+              <input
+                name="note"
+                maxLength={500}
+                className="mt-1 min-h-10 w-full rounded-lg border bg-background px-3"
+              />
+            </label>
+          </ActionForm>
+        </details>
         {metrics.length > 0 && (
           <div className="mt-4">
             <h3 className="text-sm font-semibold">Recent measurements</h3>
