@@ -14,7 +14,8 @@ const globalForDb = globalThis as unknown as {
 const connection =
   globalForDb.connection ??
   postgres(env.DATABASE_URL, {
-    max: process.env.NODE_ENV === 'production' ? 1 : 10,
+    max:
+      process.env.NODE_ENV === 'production' || process.env.HABITFLOW_EMBEDDED_DB === '1' ? 1 : 10,
     prepare: false,
     connect_timeout: 10,
     idle_timeout: 20,
