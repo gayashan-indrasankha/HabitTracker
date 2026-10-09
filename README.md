@@ -30,18 +30,18 @@ Run `npm run db:migrate` on the intended **local** database after starting Postg
 
 ## Authentication
 
-Visit `/register` to create an account or `/login` to return. Successful authentication opens `/today`. Better Auth stores password hashes and persistent sessions in PostgreSQL. The app resolves identity from the server session before reading user-owned data; protected routes redirect to `/login` when the session is absent. The older `/sign-in` and `/sign-up` links redirect to the new pages.
+Visit `/register` to create an account or `/login` to return. Successful authentication opens Home (`/dashboard`). Better Auth stores password hashes and persistent sessions in PostgreSQL. The app resolves identity from the server session before reading user-owned data; protected routes redirect to `/login` when the session is absent. The older `/sign-in` and `/sign-up` links redirect to the new pages.
 
 ## Daily workflow
 
-- `/today`: choose up to three tasks, change day mode, run or reschedule time blocks, record habits, and write an evening note.
+- `/today`: choose up to three tasks, change day mode, run or reschedule time blocks, record habits, optionally check off planned meals, and write an evening note.
 - `/week`: inspect Monday–Sunday blocks, add recurring or one-off blocks, edit times, and override a single occurrence. Fixed commitments resist casual skipping and moving.
 - `/goals`: create goals, projects, tasks, and five university subject slots. Grades are entered outcomes, not inferred from habit checks.
 - `/goals/evidence`: record topic practice, milestone reviews, interview and English assessments, actual body weight, and internship applications. See [EVIDENCE.md](EVIDENCE.md).
 - `/review`: compare fixed-habit adherence, finished tasks, completed blocks, and actual measurements; save a private weekly reflection.
 - `/dashboard`: the historical month tracker. Flexible `weekly:N` habits display complete-week quota attainment and monthly raw checks, outside fixed-day percentages. See [SCHEDULING.md](SCHEDULING.md).
 - `/settings/life-os`: preview and selectively apply an optional personal template. Applying it again preserves records with the same template keys. Nothing is seeded at registration.
-- `/settings`: set timezone, week start, and theme; download an explicit versioned JSON backup. The backup includes private notes and reviews and excludes auth credentials. There is no import/restore flow.
+- `/settings`: set timezone, week start, and theme; enable or pause an optional meal checklist and edit up to five meal templates; download an explicit versioned JSON backup. The backup includes private notes and reviews and excludes auth credentials. There is no import/restore flow.
 
 The web PostgreSQL and desktop PGlite databases remain separate. No automatic synchronization is provided.
 
@@ -107,3 +107,11 @@ Additive migrations `0009` and `0010` store planning capacity, one-off time-off 
 Goals & Projects links to one nested Evidence view for university topic practice, project milestone criteria and reviews, interview sessions, English sessions and grammar corrections, actual body-weight measurements, and internship applications. Weekly Review distinguishes recorded practice from grades, completed tasks from quality acceptance, and actual measurements from targets. Today shows a small number of due follow-ups. Evidence rules, formulas, assessment labels, and missing-data behavior are documented in [EVIDENCE.md](EVIDENCE.md).
 
 Additive migrations `0011`–`0013` store P3 records, append-only milestone review history, and optional scored interview results. The explicit JSON backup includes these private records. Apply migrations only to the intended local database after backup. Run `node tests/integration/p3-pglite.mjs` for a fresh embedded check, `node tests/integration/p1-pglite.mjs` for an embedded upgrade check, and, with `HABITFLOW_TEST_ADMIN_URL` set to a loopback PostgreSQL admin URL, `node tests/integration/p3-postgres.mjs` and `node tests/e2e/run-scheduling.mjs tests/e2e/p3-evidence.spec.ts`. The tests use disposable databases. No production migration or deployment is part of P3.
+
+## Final refinement
+
+Migration `0014` adds dated habit rules and optional meal templates/logs. Existing habits receive a current-state legacy revision; unknown earlier schedule rules are not inferred. Historical completions remain visible. Schedule edits take effect on a selected date from today onward, and archive/restore retain earlier rules. The Week workload counts a task linked to a moved session once across displayed weeks, and the gym card deduplicates same-day habit signals against recorded sessions. Weight averages label coverage separately for each calendar week. See [SCHEDULING.md](SCHEDULING.md) and [EVIDENCE.md](EVIDENCE.md).
+
+The new personal template keeps Sunday lighter by moving DevOps to Thursday/Friday and interview practice to Thursday. A Sunday mock remains as a single planned session; an English explanation session moves to Saturday. Applying the template again keeps records with existing template keys and does not rewrite previously applied schedules. Existing users can adopt the lighter pattern by editing their own series in Week.
+
+The meal checklist is off by default. Enable it in Settings, save planned meals, then mark each Today item **Followed** or **Not followed**. No entry means **Not recorded**. Planned calories or protein are reference values only; the app does not infer what was eaten or calculate actual intake. Pausing the checklist retains templates and logs. Meal data is included in the private JSON backup.
