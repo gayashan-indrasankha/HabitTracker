@@ -1,11 +1,7 @@
-import { isScheduledWeekday } from './habit-month-progress';
+import { isGridApplicable, type DatedHabit } from './habit-month-progress';
 
-export type StreakCompletion = {
+export type StreakCompletion = DatedHabit & {
   date: string;
-  startDate: string;
-  endDate?: string | null;
-  schedule: string;
-  archived: boolean;
 };
 
 /**
@@ -19,16 +15,15 @@ export function calculateStreaks(entries: StreakCompletion[], cutoff: string) {
   const completedDates = new Set(
     entries
       .filter((entry) => {
-        if (
-          entry.archived ||
-          entry.date < entry.startDate ||
-          (entry.endDate && entry.date > entry.endDate) ||
-          entry.date > cutoff
-        )
-          return false;
+        if (entry.date > cutoff) return false;
         const [year, month, day] = entry.date.split('-').map(Number);
         const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-        return isScheduledWeekday(entry.schedule, weekday);
+        return isGridApplicable(
+          entry,
+          { date: entry.date, day, weekday: '', dayOfWeek: weekday },
+          [],
+          new Set(),
+        );
       })
       .map((entry) => entry.date),
   );

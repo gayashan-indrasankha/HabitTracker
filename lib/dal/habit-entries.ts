@@ -1,6 +1,6 @@
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { habitEntries, habits } from '@/lib/db/schema';
+import { habitEntries, habitScheduleRevisions, habits } from '@/lib/db/schema';
 
 /**
  * Get all habit entries for a user within a date range (for month view).
@@ -45,24 +45,31 @@ export async function getEntriesByUserAndDateRange(
 
 /** Only the fields needed for streaks, through the selected month cutoff. */
 export async function getActiveHabitCompletionsThrough(userId: string, cutoff: string) {
-  return db
-    .select({
-      date: habitEntries.date,
-      startDate: habits.startDate,
-      endDate: habits.endDate,
-      schedule: habits.schedule,
-      archived: habits.archived,
-    })
-    .from(habitEntries)
-    .innerJoin(habits, and(eq(habitEntries.habitId, habits.id), eq(habits.userId, userId)))
-    .where(
-      and(
-        eq(habitEntries.userId, userId),
-        eq(habitEntries.completed, true),
-        eq(habits.archived, false),
-        lte(habitEntries.date, cutoff),
+  const [entries, revisions] = await Promise.all([
+    db
+      .select({
+        habitId: habitEntries.habitId,
+        date: habitEntries.date,
+        startDate: habits.startDate,
+        endDate: habits.endDate,
+        schedule: habits.schedule,
+        archived: habits.archived,
+      })
+      .from(habitEntries)
+      .innerJoin(habits, and(eq(habitEntries.habitId, habits.id), eq(habits.userId, userId)))
+      .where(
+        and(
+          eq(habitEntries.userId, userId),
+          eq(habitEntries.completed, true),
+          lte(habitEntries.date, cutoff),
+        ),
       ),
-    );
+    db.select().from(habitScheduleRevisions).where(eq(habitScheduleRevisions.userId, userId)),
+  ]);
+  return entries.map((entry) => ({
+    ...entry,
+    scheduleRevisions: revisions.filter((revision) => revision.habitId === entry.habitId),
+  }));
 }
 
 /**
