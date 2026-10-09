@@ -10,7 +10,7 @@ The displayed indicator is **Not assessed** without practice; **Needs review** i
 
 ## Portfolio milestone quality
 
-Criteria attach to existing milestone tasks and are optional per milestone. The user marks each criterion met or unmet and records a separate review with date, reviewer label, references, and notes. **Meets criteria** requires at least one criterion and all current criteria marked met; a completed task alone does not satisfy it. A later criterion change flags the accepted review for re-review. Each review saves an immutable criteria snapshot in review history, while the current review remains editable. Links and labels are user-provided evidence references; HabitFlow does not inspect or certify external repositories.
+Criteria attach to existing milestone tasks and are optional per milestone. The user marks each criterion met or unmet and records a separate review with date, reviewer label, references, and notes. **Meets criteria** requires at least one criterion and all current criteria marked met; a completed task alone does not satisfy it. A later criterion change flags the accepted review for re-review. Each review saves an immutable criteria snapshot in review history, while the current review remains editable. Links and labels are user-provided evidence references; LifeOS does not inspect or certify external repositories.
 
 ## Interview and English assessments
 

@@ -1,4 +1,4 @@
-# HabitFlow implementation plan
+# LifeOS implementation plan
 
 ## P4 release verification update (2026-10-09)
 

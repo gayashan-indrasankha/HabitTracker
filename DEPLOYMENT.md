@@ -1,4 +1,4 @@
-# HabitFlow deployment: Vercel + Neon
+# LifeOS deployment: Vercel + Neon
 
 This is a review checklist and runbook. No cloud resources are created by this repository. Keep local Docker data and production Neon data separate.
 
@@ -10,7 +10,7 @@ Set these in the Vercel **Production** environment. Use different values and a s
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`        | Neon **pooled** PostgreSQL URL, ending with `?sslmode=require` (or containing `sslmode=require` among query parameters). Runtime only. |
 | `BETTER_AUTH_SECRET`  | Unique random value of at least 32 characters. Do not reuse the development or Preview secret.                                         |
-| `BETTER_AUTH_URL`     | Canonical public HTTPS origin, such as `https://habitflow.example.com`. No path.                                                       |
+| `BETTER_AUTH_URL`     | Canonical public HTTPS origin, such as `https://lifeos.example.com`. No path.                                                          |
 | `NEXT_PUBLIC_APP_URL` | Same canonical HTTPS origin. This value is embedded in client bundles.                                                                 |
 
 `MIGRATION_DATABASE_URL` is optional for a separately run migration process. Use a Neon **direct** URL with TLS when supplied; keep it out of Vercel's application runtime environment. The migration tool falls back to `DATABASE_URL` for local development. `NODE_ENV` and `VERCEL_ENV` are platform managed. Production validation rejects a localhost database, a database URL without `sslmode=require`, or a non-HTTPS/mismatched public origin when `VERCEL_ENV=production`.

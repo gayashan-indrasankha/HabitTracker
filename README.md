@@ -1,4 +1,4 @@
-# HabitFlow
+# LifeOS
 
 For Vercel and Neon production preparation, environment settings, migrations, and the deployment approval checklist, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
@@ -6,7 +6,7 @@ For the double-click Windows application, see [DESKTOP.md](DESKTOP.md).
 
 For reproducible release gates, migration upgrades, browser coverage, and observed outcomes, see [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
-HabitFlow is a Next.js 16 personal planning app built on the existing habit tracker. Today connects three selected tasks, time blocks, applicable habits, and a private daily note. Week, Goals, and Review provide a lightweight planning loop. The original monthly tracker remains at `/dashboard?month=YYYY-MM`.
+LifeOS is a Next.js 16 personal planning app built on the existing monthly habit tracker. Today connects three selected tasks, time blocks, applicable habits, and a private daily note. Week, Goals, and Review provide a lightweight planning loop. The monthly tracker remains at `/dashboard?month=YYYY-MM`.
 
 ## Requirements
 
@@ -40,7 +40,7 @@ Visit `/register` to create an account or `/login` to return. Successful authent
 - `/goals/evidence`: record topic practice, milestone reviews, interview and English assessments, actual body weight, and internship applications. See [EVIDENCE.md](EVIDENCE.md).
 - `/review`: compare fixed-habit adherence, finished tasks, completed blocks, and actual measurements; save a private weekly reflection.
 - `/dashboard`: the historical month tracker. Flexible `weekly:N` habits display complete-week quota attainment and monthly raw checks, outside fixed-day percentages. See [SCHEDULING.md](SCHEDULING.md).
-- `/settings/life-os`: choose Personal Life OS sections, inspect a read-only record and schedule preview, then explicitly install missing items. Existing customizations, archived items, and previously removed seeded items are preserved. Nothing is seeded at registration. See [Life OS setup](docs/LIFE_OS_SETUP.md).
+- `/settings/life-os`: choose personal setup sections, inspect a read-only record and schedule preview, then explicitly install missing items. Existing customizations, archived items, and previously removed seeded items are preserved. Nothing is seeded at registration. See [LifeOS setup](docs/LIFE_OS_SETUP.md).
 - `/settings`: set timezone, week start, and theme; enable or pause an optional meal checklist and edit up to six meal templates; download an explicit versioned JSON backup. The backup includes private notes and reviews and excludes auth credentials. There is no import/restore flow.
 
 The web PostgreSQL and desktop PGlite databases remain separate. No automatic synchronization is provided.
@@ -112,6 +112,6 @@ Additive migrations `0011`–`0013` store P3 records, append-only milestone revi
 
 Migration `0014` adds dated habit rules and optional meal templates/logs. Existing habits receive a current-state legacy revision; unknown earlier schedule rules are not inferred. Historical completions remain visible. Schedule edits take effect on a selected date from today onward, and archive/restore retain earlier rules. The Week workload counts a task linked to a moved session once across displayed weeks, and the gym card deduplicates same-day habit signals against recorded sessions. Weight averages label coverage separately for each calendar week. See [SCHEDULING.md](SCHEDULING.md) and [EVIDENCE.md](EVIDENCE.md).
 
-The Personal Life OS preset proposes separate academic, career, interview, fitness, and recovery sessions while keeping Sunday lighter. Existing template-managed schedules remain intact by default. A separate, confirmed option offers effective-dated updates for a small set of unchanged flexible sessions from the earlier preset; customized and fixed schedules stay intact. Review all conflicts in the setup preview or edit a series directly in Week.
+The personal setup preset proposes separate academic, career, interview, fitness, and recovery sessions while keeping Sunday lighter. Existing template-managed schedules remain intact by default. A separate, confirmed option offers effective-dated updates for a small set of unchanged flexible sessions from the earlier preset; customized and fixed schedules stay intact. Review all conflicts in the setup preview or edit a series directly in Week.
 
 The meal checklist is off by default. Enable it in Settings, save planned meals, then mark each Today item **Followed** or **Not followed**. No entry means **Not recorded**. Planned calories or protein are reference values only; the app does not infer what was eaten or calculate actual intake. Pausing the checklist retains templates and logs. Meal data is included in the private JSON backup.
