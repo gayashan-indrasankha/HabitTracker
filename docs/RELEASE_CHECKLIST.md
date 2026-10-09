@@ -1,66 +1,54 @@
-# P4 release verification — 2026-10-08
+﻿# P4 release verification
 
-## Environment and scope
+## Latest verification â€” 2026-10-09
 
-- Baseline: `main` at `72af242`, clean before P4 edits. P0 effective-dated scheduling, P1 editing and priority management, P2 flexible planning and recovery, and P3 evidence/career flows were present in the working tree.
-- Windows, Node `v24.13.1`, npm `11.8.0`, Docker Engine `29.5.3`, local PostgreSQL 16 container on port 5433, Playwright-managed Chromium. The browser runner fixes application time at `2026-10-08T12:30:00Z` and creates a disposable database per run.
-- Baseline `npm ci`, typecheck, lint, 45 unit tests, and production build passed. Baseline `npm run format:check` failed on existing source formatting and Drizzle snapshots. The first browser attempt lacked a managed Chromium install; the subsequent 13-test run passed 12 and exposed one test assertion against a correctly disabled Current month button. That assertion was corrected.
-- No production infrastructure, credentials, user database, or deployment was used.
+The release verdict is **VERIFIED** for the P4 definition of done. Both required GitHub jobs passed on `c9ecfaf`, including 28/28 browser tests, the separate local-midnight case, and packaged Windows restart persistence. No known BLOCKER or HIGH release defect remains. The earlier 2026-10-08 record remains available in Git history.
 
-## Verification matrix
+### Environment and baseline
 
-| Area                                   | Test type and command                                                                    | Result | Evidence / remaining issue                                                                 |
-| -------------------------------------- | ---------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------ |
-| Authentication and two-user isolation  | Browser, `npm run test:e2e`                                                              | PASS   | Registration, login, logout, protected routes, invalid credentials, and separate accounts. |
-| Habits and monthly tracker             | Browser, `npm run test:e2e`                                                              | PASS   | Create/edit/archive/reorder, toggle persistence, calendar boundaries, mobile grid.         |
-| Today priorities and day modes         | Browser, `npm run test:e2e`                                                              | PASS   | P1/P2 browser workflows.                                                                   |
-| Scheduling/history and weekly planning | Unit, PostgreSQL integration, browser                                                    | PASS   | P0/P1/P2 suites and historical occurrence checks.                                          |
-| Goals, projects, P3 progress           | Browser, `npm run test:e2e`                                                              | PASS   | P1 and P3 suites, owner boundaries.                                                        |
-| Weekly review and export               | Browser, `npm run test:e2e`                                                              | PASS   | Draft/completion/history, measured outcome, JSON schema and privacy.                       |
-| Responsive widths/accessibility        | Browser, `npm run test:e2e`                                                              | PASS   | 320/390/768/1024/1440px routes, page overflow, keyboard navigation, screenshots inspected. |
-| Static and unit gates                  | `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test`, `npm run build` | PASS   | Typecheck, lint, formatting, 45 unit tests, production build.                              |
+- `main` began at clean commit `081c55f`; release fixes are at `c9ecfaf`. Windows 11, Node `v24.13.1`, npm `11.8.0`, PostgreSQL `16.14` in the local HabitFlow Docker container, Playwright `1.63.0` with managed Chromium. The GitHub jobs use Node 24, PostgreSQL 16, Ubuntu and Windows runners.
+- P0 effective-dated schedules and historical exceptions, P1 editing and priorities, P2 weekly planning and recovery, and P3 evidence/career views are present. Core routes: Home, Today, Week, Habits, Goals, Evidence, Review, Notes, and Settings; auth, health, and export API routes are present.
+- All test databases were created under random names by loopback-only harnesses or in temporary PGlite directories. No production or personal database, cloud migration, or deployment was touched.
 
-## Database migrations
+### Verification matrix
 
-| Target                   | Command                                               | Result | Evidence                                                                                                                          |
-| ------------------------ | ----------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Fresh PGlite             | `node scripts/check-embedded-migrations.mjs`          | PASS   | Fresh tables and owner/unique constraints.                                                                                        |
-| Existing-data PGlite     | `node tests/integration/release-upgrade.mjs pglite`   | PASS   | Six genuine boundaries: 0002, 0006, 0007, 0008, 0010, 0012; stable IDs, links, dates, archives, owner and uniqueness constraints. |
-| Fresh PostgreSQL         | `node tests/integration/release-upgrade.mjs postgres` | PASS   | Each boundary uses a new disposable database and applies the full chain.                                                          |
-| Existing-data PostgreSQL | `node tests/integration/release-upgrade.mjs postgres` | PASS   | Six historical upgrades, migration reapplication, and data/constraint assertions.                                                 |
+| Area                                              | Command / evidence                                                                                              | Result                                                                                                                                                    |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Static gates and unit logic                       | `npm ci`, `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test`, `npm run build`              | PASS; 57 unit tests and production route build.                                                                                                           |
+| Auth and isolation                                | `npm run test:e2e`                                                                                              | PASS in the final hosted 28/28 run: registration, login, session/logout, invalid credentials, protected routes, and two-user boundaries.                  |
+| Habits, Today, Week, Goals, P3, Review, export    | `npm run test:e2e`                                                                                              | PASS in the final hosted 28/28 run, including history, scheduling, priorities, evidence, and private export.                                              |
+| Historical month tracker and five viewport widths | `npm run test:e2e -- responsive.spec.ts tracker.spec.ts`                                                        | PASS; 6/6 after correction at 320, 390, 768, 1024, and 1440px.                                                                                            |
+| Local-midnight eligibility                        | PowerShell: `$env:HABITFLOW_TEST_NOW='2026-10-08T18:40:00Z'; npm.cmd run test:e2e -- timezone-midnight.spec.ts` | PASS; Colombo local day available while UTC is still yesterday.                                                                                           |
+| Visual and keyboard checks                        | Responsive Playwright cases, saved `habit-form-320.png`, `habit-form-390.png`, `habit-form-1440.png`            | PASS; inspected 320px and 1440px forms, readable controls and no page-level horizontal overflow. Navigation keyboard flow and focused active page passed. |
 
-The upgrade harness checks journal numbering, SQL and snapshot presence, and destructive SQL, then creates only random test databases under a loopback-only admin URL. It drops only databases it created. It does not rewrite checked-in migrations.
+The first local full browser run was 26/28 because the 320px navigation assertion raced the active-tab scroll under concurrent package load and a tracker fixture expected a newly started habit in years before its start date. Hosted run [37902634868](https://github.com/gayashan-indrasankha/HabitTracker/actions/runs/37902634868) reproduced only the tracker fixture failure; its responsive cases passed. The focused 6/6 local rerun verifies both corrections. The final hosted run passed all 28 browser tests and its separate local-midnight test.
 
-## Windows desktop
+For local PostgreSQL and browser tests, `HABITFLOW_TEST_ADMIN_URL` was explicitly set to `postgresql://habitflow:habitflow@127.0.0.1:5433/habitflow` from `docker-compose.yml`. The harness created and dropped only its own random test databases; it did not alter the admin database's existing tables.
 
-| Check                                                    | Command                                        | Result  | Remaining issue                                                                                                             |
-| -------------------------------------------------------- | ---------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Embedded standalone server, authenticated routes, export | `npm run desktop:smoke`                        | PASS    | Includes P3 evidence route and authenticated write.                                                                         |
-| Portable package and bundle inspection                   | `npm run desktop:package`                      | PASS    | 521 MB executable; app identity/version, migration journal, runtime, no `.env` files.                                       |
-| Real packaged window and UI                              | `node tests/desktop/portable.mjs`              | PASS    | Packaged `win-unpacked/HabitFlow.exe`; registration, habit completion, core routes.                                         |
-| Persistence after packaged restart                       | `node tests/desktop/portable.mjs`              | PASS    | Same isolated PGlite profile; habit and completion survive clean close/relaunch.                                            |
-| NSIS portable wrapper startup                            | `HabitFlow 0.1.0.exe`                          | PASS    | Direct launch spawned its extracted Electron child, responsive login window, isolated PGlite profile, and clean child exit. |
-| Prior-version packaged upgrade                           | Earlier binary against isolated test directory | NOT RUN | Prior portable binary not available locally. Historical migrations are covered above.                                       |
+### Database and desktop
 
-Web PostgreSQL and desktop PGlite remain separate. The desktop CI job runs the packaged `win-unpacked` executable UI and restart test. Its outcome must be observed on GitHub before counting it as CI evidence.
+| Check                                    | Command                                                                                                   | Result                                                                                                                                                                  |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fresh PGlite and close/reopen            | `node scripts/check-embedded-migrations.mjs`; `node tests/integration/pglite-persistence.mjs`             | PASS.                                                                                                                                                                   |
+| Historical PGlite upgrade                | `node tests/integration/release-upgrade.mjs pglite`                                                       | PASS; seven genuine boundaries `0002`, `0006`, `0007`, `0008`, `0010`, `0012`, `0013` upgraded through `0014`, with retained IDs, links, dates, and constraints.        |
+| Fresh PostgreSQL and historical upgrades | `node tests/integration/release-upgrade.mjs postgres`                                                     | PASS on disposable local databases at the same seven boundaries.                                                                                                        |
+| P0â€“P3 PostgreSQL behavior              | `node tests/integration/scheduling-postgres.mjs`, `p1-postgres.mjs`, `p2-postgres.mjs`, `p3-postgres.mjs` | PASS; scheduling and owner constraints, priority transactions, rest day separation, evidence links.                                                                     |
+| Desktop standalone server                | `npm run desktop:smoke`                                                                                   | PASS; fresh PGlite, health, registration, authenticated main routes, export.                                                                                            |
+| Windows package                          | `npm run desktop:package`                                                                                 | PASS; `HabitFlow 0.1.0.exe` was 521,747,828 bytes. Staged migration journal and standalone server were present.                                                         |
+| Packaged Electron UI and restart         | `node tests/desktop/portable.mjs`                                                                         | PASS on `win-unpacked/HabitFlow.exe`; registration, habit completion, export, core routes, clean shutdown, and persistence in the same isolated profile after relaunch. |
+| Prior packaged-version data upgrade      | No earlier portable artifact available                                                                    | NOT RUN. Historical schema upgrades are covered by the two database engines above.                                                                                      |
 
-## CI
+The earlier attempt to run a desktop build while the smoke server was using `.next/standalone` invalidated that one local smoke run. Both commands passed when rerun in sequence; CI keeps these steps sequential.
 
-`.github/workflows/ci.yml` runs source gates, PostgreSQL/PGlite migrations and browser tests with a PostgreSQL 16 service. `.github/workflows/desktop-check.yml` builds, inspects, and exercises the packaged Windows application. Both use read-only repository permissions, disposable test data, and no production secrets or deployment steps.
+### CI and findings
 
-| Workflow                | GitHub run                                                                                   | Result  | Evidence / next step                                                                                                                                     |
-| ----------------------- | -------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Quality gate            | [37817434858](https://github.com/gayashan-indrasankha/HabitTracker/actions/runs/37817434858) | BLOCKED | GitHub refused the job before any step: “The job was not started because your account is locked due to a billing issue.” No runner or logs were created. |
-| Windows desktop package | [37817434856](https://github.com/gayashan-indrasankha/HabitTracker/actions/runs/37817434856) | BLOCKED | Same GitHub billing lock; no runner or steps executed.                                                                                                   |
+| Workflow on `c9ecfaf`   | Hosted run                                                                                   | Result                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Quality gate            | [37904194664](https://github.com/gayashan-indrasankha/HabitTracker/actions/runs/37904194664) | PASS; 57 unit, 28 browser, 1 midnight, migrations, integrations, and build. |
+| Windows desktop package | [37904194634](https://github.com/gayashan-indrasankha/HabitTracker/actions/runs/37904194634) | PASS                                                                        |
 
-Once the account lock is resolved, rerun both workflows on the current commit and record their actual results. Local execution does not establish a GitHub CI pass.
-
-## Findings and release gate
-
-- **LOW, fixed:** a pre-existing tracker test assumed the Current month button was clickable while already on the fixed current month.
-- **HIGH, fixed:** multiple PostgreSQL protocol clients on one PGlite socket could mismatch prepared-statement parameters and return HTTP 500 during desktop UI writes. The client is now shared and uses unnamed statements; real packaged UI and standalone browser regression tests pass.
-- **MEDIUM, fixed:** repository formatting was not clean. Applied migration snapshots are excluded from Prettier to preserve metadata; maintained source now passes the formatting gate.
-- Local browser suite passed 22/22 twice; the second run followed the desktop database correction. The 45 unit tests, static gates, and production build passed.
-- Release verdict is **PARTIALLY VERIFIED** because both required GitHub jobs are BLOCKED by the account billing lock. Playwright's full UI and restart flow used the packaged `win-unpacked` executable; the NSIS wrapper itself was directly launched and closed, but its full data persistence flow was not repeated. The prior-version binary upgrade is NOT RUN because no earlier binary is available.
-
-Run browser and PostgreSQL tests only with `HABITFLOW_TEST_ADMIN_URL` set to a local disposable PostgreSQL admin database. The harness refuses non-loopback hosts. On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution policy blocks npm.ps1.
+- **HIGH, fixed:** CI production builds lacked the test-only server environment values required during Next.js route collection.
+- **MEDIUM, fixed:** The release upgrade fixture expected 14 migrations after migration `0014` made 15. The added `0013` boundary verifies upgrade of the immediately preceding schema.
+- **LOW, fixed:** The packaged UI test assumed a desktop sidebar on a narrow hosted Windows screen. It now verifies the visible navigation.
+- **LOW, fixed:** The tracker test's historical-month expectation contradicted its habit start date. It now uses a genuine historical habit and confirms the newer habit is absent before its start.
+- The packaged application ran with Node integration disabled, context isolation and renderer sandbox enabled, loopback binding, and encrypted session-secret storage. The unsigned portable wrapper was built but not published or signed.

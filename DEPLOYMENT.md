@@ -34,6 +34,8 @@ Before promoting a release run `npm ci`, `npm run lint`, `npm run typecheck`, `n
 
 Also require `npm run format:check`, fresh and existing-data migrations on disposable PostgreSQL and PGlite, and green GitHub web and Windows package jobs. The CI workflows never connect to Neon or deploy. The release matrix and any outstanding packaged GUI checks are recorded in [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
+The CI build supplies local test-only `DATABASE_URL`, `BETTER_AUTH_SECRET`, and application URLs because Next.js evaluates server route modules while collecting build data. These values are confined to disposable CI jobs; they are not deployment credentials. Configure actual production values only in the deployment environment.
+
 ## Logs, errors, and seeds
 
 Vercel function logs should be retained and monitored for `Health check database connection failed`, failed builds, and 5xx responses. The health response and auth errors must not contain database URLs, tokens, passwords, or raw driver errors. Rotate any credential accidentally logged or exposed.

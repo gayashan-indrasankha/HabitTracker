@@ -1,5 +1,9 @@
 # HabitFlow implementation plan
 
+## P4 release verification update (2026-10-09)
+
+The current branch includes P0 scheduling, P1 editing and priority management, P2 flexible planning, and P3 evidence workflows. The P4 regression suite now covers authentication and owner isolation, those workflows, export, five responsive widths, genuine historical PostgreSQL/PGlite upgrades through migration `0014`, and a packaged Windows restart with persistent data. The current run results and any remaining release limits are recorded in [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md). Production migration and deployment remain separate approval steps.
+
 ## P1 editing status (2026-10-08)
 
 Goal and project forms now support all meaningful saved fields, optional-field clearing, and reversible archiving. Time-block revisions now retain future rule metadata, while occurrence exceptions keep stable historical identities. Today offers searchable backlog selection and transactional priority assignment, swap, replacement, removal, and compaction. Migration `0008` is additive. Verification results and remaining limits are reported with the implementation handoff; this section describes the implemented scope, not a production deployment.
