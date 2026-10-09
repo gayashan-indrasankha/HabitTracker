@@ -1,0 +1,789 @@
+import { and, eq, sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import {
+  goals,
+  projects,
+  tasks,
+  subjects,
+  habits,
+  habitScheduleRevisions,
+  timeBlocks,
+  timeBlockRevisions,
+  timeBlockExceptions,
+  interviewTopics,
+  mealTemplates,
+  userSettings,
+  lifeOsSeedItems,
+} from '@/lib/db/schema';
+import {
+  expandBlocks,
+  futureBoundaryDates,
+  overlaps,
+  type BlockRule,
+  type BlockRevision,
+  type BlockException,
+} from '@/lib/planning/time-blocks';
+import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
+import {
+  blocks,
+  goals as goalPreset,
+  habits as habitPreset,
+  meals,
+  projects as projectPreset,
+  tasks as taskPreset,
+  topics,
+  type Section,
+} from './preset';
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type PlanItem = {
+  section: Section;
+  type: string;
+  key: string;
+  name: string;
+  detail: string;
+  status: 'new' | 'update' | 'existing' | 'archived' | 'deleted' | 'duplicate' | 'conflict';
+  reason?: string;
+};
+export type Plan = { items: PlanItem[]; needsInput: string[]; today: string };
+export type SetupOptions = {
+  sections: Section[];
+  mondayStart: string;
+  mondayEnd: string;
+  tuesdayStart: string;
+  tuesdayEnd: string;
+  calories: number;
+  protein: number;
+  updateSchedule: boolean;
+  confirm: boolean;
+};
+
+// Only unchanged first-generation managed rules qualify for an offered revision.
+// A changed title, time, day or any existing revision means the user has edited
+// the series and setup leaves it alone.
+const legacyRules: Record<string, { title: string; mask: string; start: string; end: string }> = {
+  'academic-sat': {
+    title: 'Academic consolidation',
+    mask: '0000010',
+    start: '09:00',
+    end: '11:00',
+  },
+  'weakness-sun': { title: 'Review weak subjects', mask: '0000001', start: '10:00', end: '11:00' },
+  'se-practice': { title: 'Practical coding', mask: '0010010', start: '11:30', end: '13:00' },
+  'devops-practice': {
+    title: 'Apply DevOps learning',
+    mask: '0001100',
+    start: '11:30',
+    end: '13:00',
+  },
+};
+
+const active = (status: string | null | undefined) => status !== 'archived' && status !== 'paused';
+const detail = (item: { name: string }, description?: string) => description ?? item.name;
+
+async function inspect(tx: Tx, userId: string, options: SetupOptions): Promise<Plan> {
+  const [setting] = await tx
+    .select()
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1);
+  const today = toDateString(getTodayInTimezone(setting?.timezone ?? 'Asia/Colombo'));
+  const [
+    savedGoals,
+    savedProjects,
+    savedTasks,
+    savedSubjects,
+    savedHabits,
+    savedBlocks,
+    savedRevisions,
+    savedExceptions,
+    savedTopics,
+    savedMeals,
+    seedItems,
+  ] = await Promise.all([
+    tx.select().from(goals).where(eq(goals.userId, userId)),
+    tx.select().from(projects).where(eq(projects.userId, userId)),
+    tx.select().from(tasks).where(eq(tasks.userId, userId)),
+    tx.select().from(subjects).where(eq(subjects.userId, userId)),
+    tx.select().from(habits).where(eq(habits.userId, userId)),
+    tx.select().from(timeBlocks).where(eq(timeBlocks.userId, userId)),
+    tx.select().from(timeBlockRevisions).where(eq(timeBlockRevisions.userId, userId)),
+    tx.select().from(timeBlockExceptions).where(eq(timeBlockExceptions.userId, userId)),
+    tx.select().from(interviewTopics).where(eq(interviewTopics.userId, userId)),
+    tx.select().from(mealTemplates).where(eq(mealTemplates.userId, userId)),
+    tx.select().from(lifeOsSeedItems).where(eq(lifeOsSeedItems.userId, userId)),
+  ]);
+  const seeded = new Set(seedItems.map((item) => `${item.itemType}:${item.templateKey}`));
+  const chosen = new Set(options.sections);
+  const items: PlanItem[] = [];
+  const add = (
+    section: Section,
+    type: string,
+    key: string,
+    name: string,
+    description: string,
+    existing:
+      | {
+          templateKey?: string | null;
+          name?: string;
+          title?: string;
+          status?: string;
+          archived?: boolean;
+          archivedAt?: Date | null;
+          active?: boolean;
+        }
+      | undefined,
+    duplicate: boolean,
+  ) => {
+    const status: PlanItem['status'] = existing
+      ? existing.archived ||
+        !!existing.archivedAt ||
+        existing.active === false ||
+        !active(existing.status)
+        ? 'archived'
+        : 'existing'
+      : seeded.has(`${type}:${key}`)
+        ? 'deleted'
+        : duplicate
+          ? 'duplicate'
+          : 'new';
+    const reason =
+      status === 'archived'
+        ? 'Previously archived or paused; restore manually if wanted.'
+        : status === 'deleted'
+          ? 'Previously removed; this preset will not recreate it automatically.'
+          : status === 'duplicate'
+            ? 'Similar user-created record; review manually to avoid a duplicate.'
+            : status === 'existing'
+              ? 'Matching managed record is kept without changes.'
+              : undefined;
+    items.push({ section, type, key, name, detail: description, status, reason });
+  };
+  for (const item of goalPreset.filter((item) => chosen.has(item.section)))
+    add(
+      item.section,
+      'Goal',
+      item.key,
+      item.name,
+      detail(item, item.description),
+      savedGoals.find((row) => row.templateKey === item.key),
+      savedGoals.some((row) => !row.templateKey && row.title === item.name),
+    );
+  for (const item of projectPreset.filter((item) => chosen.has(item.section)))
+    add(
+      item.section,
+      'Project',
+      item.key,
+      item.name,
+      `Goal: ${goalPreset.find((goal) => goal.key === item.goal)?.name}`,
+      savedProjects.find((row) => row.templateKey === item.key),
+      savedProjects.some((row) => !row.templateKey && row.name === item.name),
+    );
+  for (const item of taskPreset.filter((item) => chosen.has(item.section)))
+    add(
+      item.section,
+      item.milestone ? 'Milestone' : 'Starter task',
+      item.key,
+      item.name,
+      item.project
+        ? `Project: ${projectPreset.find((project) => project.key === item.project)?.name}`
+        : (item.details ?? 'Editable suggestion'),
+      savedTasks.find((row) => row.templateKey === item.key),
+      savedTasks.some((row) => !row.templateKey && row.title === item.name),
+    );
+  if (chosen.has('university'))
+    for (let slot = 1; slot <= 5; slot++) {
+      const row = savedSubjects.find((subject) => subject.slot === slot);
+      items.push({
+        section: 'university',
+        type: 'Subject slot',
+        key: `subject-${slot}`,
+        name: row?.name ?? `Subject ${slot}`,
+        detail: 'Editable placeholder; no subject name or grade is assumed.',
+        status: row ? 'existing' : seeded.has(`Subject slot:subject-${slot}`) ? 'deleted' : 'new',
+      });
+    }
+  for (const item of habitPreset.filter((item) => chosen.has(item.section)))
+    add(
+      item.section,
+      'Habit',
+      item.key,
+      item.name,
+      `${item.schedule}; ${item.description ?? 'No completion is recorded.'}`,
+      savedHabits.find((row) => row.templateKey === item.key),
+      savedHabits.some((row) => !row.templateKey && row.name === item.name),
+    );
+  for (const item of topics.filter((item) => chosen.has(item.section)))
+    add(
+      item.section,
+      'Interview topic',
+      item.key,
+      item.name,
+      `${item.track} starter topic; no practice or score is recorded.`,
+      savedTopics.find((row) => row.templateKey === item.key),
+      savedTopics.some(
+        (row) => !row.templateKey && row.title === item.name && row.roleTrack === item.track,
+      ),
+    );
+  for (const item of meals.filter((item) => chosen.has(item.section))) {
+    const existing = savedMeals.find((row) => row.templateKey === item.key);
+    add(
+      item.section,
+      'Meal template',
+      item.key,
+      item.name,
+      'Optional editable slot; no meal or calories are logged.',
+      existing,
+      savedMeals.some((row) => !row.templateKey && row.name === item.name),
+    );
+    const entry = items.at(-1)!;
+    if (
+      entry.status === 'new' &&
+      savedMeals.length +
+        items.filter((row) => row.type === 'Meal template' && row.status === 'new').length >
+        6
+    ) {
+      entry.status = 'conflict';
+      entry.reason = 'The meal checklist supports six slots; review existing meals first.';
+    }
+  }
+  const rules: BlockRule[] = savedBlocks.map((row) => ({
+    ...row,
+    id: row.id,
+    status: row.status,
+    templateKey: row.templateKey,
+    goalId: row.goalId,
+    projectId: row.projectId,
+    taskId: row.taskId,
+  }));
+  const revisions: BlockRevision[] = savedRevisions.map((row) => ({ ...row }));
+  const exceptions: BlockException[] = savedExceptions.map((row) => ({ ...row }));
+  const conflictsWithSchedule = (
+    candidate: BlockRule,
+    allRules: BlockRule[],
+    datedRules: BlockRevision[],
+  ) =>
+    futureBoundaryDates(today, allRules, datedRules, exceptions).some((date) => {
+      const occurrences = expandBlocks(allRules, exceptions, date, date, datedRules);
+      return occurrences.some(
+        (current) =>
+          current.id === candidate.id &&
+          occurrences.some(
+            (other) =>
+              other.id !== candidate.id &&
+              other.occurrenceStatus !== 'skipped' &&
+              other.occurrenceStatus !== 'excused' &&
+              overlaps(other, current),
+          ),
+      );
+    });
+  const proposed = blocks
+    .filter((item) => chosen.has(item.section))
+    .map((item) => ({
+      ...item,
+      start:
+        item.key === 'lecture-mon'
+          ? options.mondayStart
+          : item.key === 'lecture-tue'
+            ? options.tuesdayStart
+            : item.start,
+      end:
+        item.key === 'lecture-mon'
+          ? options.mondayEnd
+          : item.key === 'lecture-tue'
+            ? options.tuesdayEnd
+            : item.end,
+    }));
+  const accepted: BlockRule[] = [];
+  for (const item of proposed) {
+    const existing = savedBlocks.find((row) => row.templateKey === item.key);
+    const description = `${item.mask
+      .split('')
+      .map((digit, index) =>
+        digit === '1' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index] : '',
+      )
+      .filter(Boolean)
+      .join(', ')} ${item.start}–${item.end}${item.fixed ? ' · fixed' : ''}`;
+    if (existing) {
+      add(item.section, 'Weekly block', item.key, item.name, description, existing, false);
+      const entry = items.at(-1)!;
+      const old = legacyRules[item.key];
+      const untouched =
+        old &&
+        existing.title === old.title &&
+        existing.weekdayMask === old.mask &&
+        existing.localStartTime === old.start &&
+        existing.localEndTime === old.end &&
+        existing.status === 'active' &&
+        !savedRevisions.some((revision) => revision.blockId === existing.id);
+      const changed =
+        existing.title !== item.name ||
+        existing.weekdayMask !== item.mask ||
+        existing.localStartTime !== item.start ||
+        existing.localEndTime !== item.end;
+      if (options.updateSchedule && entry.status === 'existing' && changed) {
+        if (untouched && !existing.isFixed) {
+          const revised: BlockRevision = {
+            blockId: existing.id,
+            effectiveDate: today,
+            title: item.name,
+            category: item.area,
+            localStartTime: item.start,
+            localEndTime: item.end,
+            weekdayMask: item.mask,
+            status: 'active',
+            isFixed: false,
+            endDate: existing.endDate,
+            taskId: existing.taskId,
+            goalId: existing.goalId,
+            projectId: existing.projectId,
+          };
+          const candidate: BlockRule = {
+            ...existing,
+            title: item.name,
+            category: item.area,
+            localStartTime: item.start,
+            localEndTime: item.end,
+            weekdayMask: item.mask,
+          };
+          if (conflictsWithSchedule(candidate, [...rules, ...accepted], [...revisions, revised])) {
+            entry.status = 'conflict';
+            entry.reason =
+              'Recommended change would overlap another session; current schedule is kept.';
+          } else {
+            entry.status = 'update';
+            entry.reason = `Future occurrences change from ${today}; earlier history stays intact.`;
+            revisions.push(revised);
+          }
+        } else
+          entry.reason =
+            'This managed schedule was customized or is fixed; its current rule is kept.';
+      }
+      continue;
+    }
+    const entry: PlanItem = {
+      section: item.section,
+      type: 'Weekly block',
+      key: item.key,
+      name: item.name,
+      detail: description,
+      status: 'new',
+    };
+    const candidate: BlockRule = {
+      id: `proposed:${item.key}`,
+      templateKey: item.key,
+      title: item.name,
+      category: item.area,
+      localStartTime: item.start,
+      localEndTime: item.end,
+      weekdayMask: item.mask,
+      startDate: today,
+      endDate: null,
+      isFixed: !!item.fixed,
+      status: 'active',
+    };
+    if (seeded.has(`Weekly block:${item.key}`)) {
+      entry.status = 'deleted';
+      entry.reason = 'Previously removed; this preset will not recreate it automatically.';
+    } else if (
+      savedBlocks.some(
+        (row) => !row.templateKey && row.title === item.name && row.weekdayMask === item.mask,
+      )
+    ) {
+      entry.status = 'duplicate';
+      entry.reason = 'Similar user-created session; review manually.';
+    } else {
+      if (conflictsWithSchedule(candidate, [...rules, ...accepted, candidate], revisions)) {
+        entry.status = 'conflict';
+        entry.reason =
+          'Overlaps an existing or proposed session. Adjust it in Week before installing.';
+      }
+    }
+    if (entry.status === 'new') accepted.push(candidate);
+    items.push(entry);
+  }
+  const dependencyAvailable = (type: string, key: string) => {
+    const dependency = items.find((entry) => entry.type === type && entry.key === key);
+    return (
+      dependency?.status === 'new' ||
+      dependency?.status === 'existing' ||
+      dependency?.status === 'update'
+    );
+  };
+  const blockByKey = new Map(blocks.map((item) => [item.key, item]));
+  const projectByKey = new Map(projectPreset.map((item) => [item.key, item]));
+  const taskByKey = new Map(taskPreset.map((item) => [item.key, item]));
+  for (const entry of items) {
+    if (entry.status !== 'new') continue;
+    const project = entry.type === 'Project' ? projectByKey.get(entry.key) : undefined;
+    const task =
+      entry.type === 'Milestone' || entry.type === 'Starter task'
+        ? taskByKey.get(entry.key)
+        : undefined;
+    const block = entry.type === 'Weekly block' ? blockByKey.get(entry.key) : undefined;
+    const goalKey = project?.goal ?? task?.goal ?? block?.goal;
+    const projectKey = task?.project ?? block?.project;
+    if (
+      (goalKey && !dependencyAvailable('Goal', goalKey)) ||
+      (projectKey && !dependencyAvailable('Project', projectKey))
+    ) {
+      entry.status = 'conflict';
+      entry.reason = 'Related goal or project is unavailable; review it before adding this item.';
+    }
+  }
+  return {
+    items,
+    today,
+    needsInput: [
+      'Replace Subject 1–5 with real names and set assessment dates when known.',
+      'Choose real foods, portions, preferred meal times and any meal macros.',
+      'Choose one travel or social day when known; no date is invented.',
+      'Add real grades, weight measurements, practice outcomes and applications only after they occur.',
+    ],
+  };
+}
+
+export async function previewPersonalLifeOs(userId: string, options: SetupOptions): Promise<Plan> {
+  return db.transaction((tx) => inspect(tx, userId, options));
+}
+
+export async function installPersonalLifeOs(userId: string, options: SetupOptions) {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`habitflow-schedule:${userId}`}, 0))`,
+    );
+    const plan = await inspect(tx, userId, options);
+    const allowed = (type: string, key: string) =>
+      plan.items.find((item) => item.type === type && item.key === key)?.status === 'new';
+    const counts = {
+      created: 0,
+      updated: 0,
+      existing: plan.items.filter(
+        (item) =>
+          item.status === 'existing' || item.status === 'archived' || item.status === 'deleted',
+      ).length,
+      conflicts: plan.items.filter(
+        (item) => item.status === 'conflict' || item.status === 'duplicate',
+      ).length,
+    };
+    await tx
+      .insert(userSettings)
+      .values({ userId, timezone: 'Asia/Colombo', weekStartsOn: 1, theme: 'system' })
+      .onConflictDoNothing();
+    const goalIds = new Map(
+      (await tx.select().from(goals).where(eq(goals.userId, userId)))
+        .filter((row) => row.templateKey)
+        .map((row) => [row.templateKey!, row.id]),
+    );
+    for (const item of goalPreset.filter((item) => options.sections.includes(item.section))) {
+      if (allowed('Goal', item.key)) {
+        const [row] = await tx
+          .insert(goals)
+          .values({
+            userId,
+            templateKey: item.key,
+            area: item.area,
+            title: item.name,
+            description:
+              item.key === 'nutrition-reference'
+                ? `Approximately ${options.calories} kcal and ${options.protein} g protein daily are planning references, not consumed totals.`
+                : item.description,
+            targetValue: item.targetValue,
+            targetUnit: item.targetUnit,
+          })
+          .onConflictDoNothing()
+          .returning({ id: goals.id });
+        if (row) {
+          goalIds.set(item.key, row.id);
+          counts.created++;
+        }
+      }
+    }
+    const projectIds = new Map(
+      (await tx.select().from(projects).where(eq(projects.userId, userId)))
+        .filter((row) => row.templateKey)
+        .map((row) => [row.templateKey!, row.id]),
+    );
+    for (const item of projectPreset.filter((item) => options.sections.includes(item.section))) {
+      if (allowed('Project', item.key) && goalIds.has(item.goal)) {
+        const [row] = await tx
+          .insert(projects)
+          .values({
+            userId,
+            templateKey: item.key,
+            name: item.name,
+            type: item.type,
+            goalId: goalIds.get(item.goal),
+          })
+          .onConflictDoNothing()
+          .returning({ id: projects.id });
+        if (row) {
+          projectIds.set(item.key, row.id);
+          counts.created++;
+        }
+      }
+    }
+    for (const item of taskPreset.filter((item) => options.sections.includes(item.section))) {
+      if (!allowed(item.milestone ? 'Milestone' : 'Starter task', item.key)) continue;
+      if (item.project && !projectIds.has(item.project)) continue;
+      if (item.goal && !goalIds.has(item.goal)) continue;
+      const [row] = await tx
+        .insert(tasks)
+        .values({
+          userId,
+          templateKey: item.key,
+          title: item.name,
+          details: item.details,
+          area:
+            item.section === 'university'
+              ? 'University'
+              : item.section === 'english'
+                ? 'Communication'
+                : 'Career',
+          goalId: item.goal
+            ? goalIds.get(item.goal)
+            : item.project
+              ? goalIds.get(projectPreset.find((project) => project.key === item.project)!.goal)
+              : null,
+          projectId: item.project ? projectIds.get(item.project) : null,
+          isMilestone: !!item.milestone,
+        })
+        .onConflictDoNothing()
+        .returning({ id: tasks.id });
+      if (row) counts.created++;
+    }
+    if (options.sections.includes('university'))
+      for (let slot = 1; slot <= 5; slot++)
+        if (allowed('Subject slot', `subject-${slot}`)) {
+          const [row] = await tx
+            .insert(subjects)
+            .values({ userId, slot, name: `Subject ${slot}` })
+            .onConflictDoNothing()
+            .returning({ id: subjects.id });
+          if (row) counts.created++;
+        }
+    for (const item of habitPreset.filter((item) => options.sections.includes(item.section)))
+      if (allowed('Habit', item.key)) {
+        const [row] = await tx
+          .insert(habits)
+          .values({
+            userId,
+            templateKey: item.key,
+            name: item.name,
+            description: item.description,
+            category: item.category,
+            schedule: item.schedule,
+            monthlyTarget: item.target,
+            startDate: plan.today,
+          })
+          .onConflictDoNothing()
+          .returning({ id: habits.id });
+        if (row) {
+          await tx.insert(habitScheduleRevisions).values({
+            userId,
+            habitId: row.id,
+            effectiveDate: plan.today,
+            schedule: item.schedule,
+            startDate: plan.today,
+            status: 'active',
+          });
+          counts.created++;
+        }
+      }
+    for (const item of topics.filter((item) => options.sections.includes(item.section)))
+      if (allowed('Interview topic', item.key)) {
+        const [row] = await tx
+          .insert(interviewTopics)
+          .values({
+            userId,
+            templateKey: item.key,
+            category: item.category,
+            title: item.name,
+            roleTrack: item.track,
+          })
+          .onConflictDoNothing()
+          .returning({ id: interviewTopics.id });
+        if (row) counts.created++;
+      }
+    for (const item of meals.filter((item) => options.sections.includes(item.section)))
+      if (allowed('Meal template', item.key)) {
+        const [row] = await tx
+          .insert(mealTemplates)
+          .values({
+            userId,
+            templateKey: item.key,
+            name: item.name,
+            notes: item.notes,
+            sortOrder: item.order,
+          })
+          .onConflictDoNothing()
+          .returning({ id: mealTemplates.id });
+        if (row) counts.created++;
+      }
+    for (const item of blocks.filter((item) => options.sections.includes(item.section))) {
+      if (
+        plan.items.find((entry) => entry.type === 'Weekly block' && entry.key === item.key)
+          ?.status === 'update'
+      ) {
+        const existing = (
+          await tx
+            .select()
+            .from(timeBlocks)
+            .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.templateKey, item.key)))
+            .limit(1)
+        )[0];
+        if (!existing)
+          throw new Error('A scheduled session changed while installing. Preview again.');
+        await tx.insert(timeBlockRevisions).values({
+          userId,
+          blockId: existing.id,
+          effectiveDate: plan.today,
+          title: item.name,
+          category: item.area,
+          localStartTime: item.start,
+          localEndTime: item.end,
+          weekdayMask: item.mask,
+          status: 'active',
+          endDate: existing.endDate,
+          isFixed: false,
+          goalId: existing.goalId,
+          projectId: existing.projectId,
+          taskId: existing.taskId,
+        });
+        counts.updated++;
+        continue;
+      }
+      if (!allowed('Weekly block', item.key)) continue;
+      const [row] = await tx
+        .insert(timeBlocks)
+        .values({
+          userId,
+          templateKey: item.key,
+          title: item.name,
+          category: item.area,
+          weekdayMask: item.mask,
+          localStartTime:
+            item.key === 'lecture-mon'
+              ? options.mondayStart
+              : item.key === 'lecture-tue'
+                ? options.tuesdayStart
+                : item.start,
+          localEndTime:
+            item.key === 'lecture-mon'
+              ? options.mondayEnd
+              : item.key === 'lecture-tue'
+                ? options.tuesdayEnd
+                : item.end,
+          startDate: plan.today,
+          isFixed: !!item.fixed,
+          goalId: item.goal ? goalIds.get(item.goal) : null,
+          projectId: item.project ? projectIds.get(item.project) : null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: timeBlocks.id });
+      if (row) {
+        await tx.insert(timeBlockRevisions).values({
+          userId,
+          blockId: row.id,
+          effectiveDate: plan.today,
+          title: item.name,
+          category: item.area,
+          weekdayMask: item.mask,
+          localStartTime:
+            item.key === 'lecture-mon'
+              ? options.mondayStart
+              : item.key === 'lecture-tue'
+                ? options.tuesdayStart
+                : item.start,
+          localEndTime:
+            item.key === 'lecture-mon'
+              ? options.mondayEnd
+              : item.key === 'lecture-tue'
+                ? options.tuesdayEnd
+                : item.end,
+          status: 'active',
+          isFixed: !!item.fixed,
+          goalId: item.goal ? goalIds.get(item.goal) : null,
+          projectId: item.project ? projectIds.get(item.project) : null,
+        });
+        counts.created++;
+      }
+    }
+    if (counts.created !== plan.items.filter((item) => item.status === 'new').length)
+      throw new Error(
+        'The proposed setup changed during installation. No partial changes were saved; preview again.',
+      );
+    const installed = new Set<string>();
+    const collect = (type: string, keys: (string | null)[]) =>
+      keys.forEach((key) => {
+        if (key) installed.add(`${type}:${key}`);
+      });
+    collect(
+      'Goal',
+      (await tx.select({ key: goals.templateKey }).from(goals).where(eq(goals.userId, userId))).map(
+        (row) => row.key,
+      ),
+    );
+    collect(
+      'Project',
+      (
+        await tx
+          .select({ key: projects.templateKey })
+          .from(projects)
+          .where(eq(projects.userId, userId))
+      ).map((row) => row.key),
+    );
+    const taskRows = await tx
+      .select({ key: tasks.templateKey, milestone: tasks.isMilestone })
+      .from(tasks)
+      .where(eq(tasks.userId, userId));
+    taskRows.forEach((row) => collect(row.milestone ? 'Milestone' : 'Starter task', [row.key]));
+    collect(
+      'Subject slot',
+      (
+        await tx.select({ slot: subjects.slot }).from(subjects).where(eq(subjects.userId, userId))
+      ).map((row) => `subject-${row.slot}`),
+    );
+    collect(
+      'Habit',
+      (
+        await tx.select({ key: habits.templateKey }).from(habits).where(eq(habits.userId, userId))
+      ).map((row) => row.key),
+    );
+    collect(
+      'Interview topic',
+      (
+        await tx
+          .select({ key: interviewTopics.templateKey })
+          .from(interviewTopics)
+          .where(eq(interviewTopics.userId, userId))
+      ).map((row) => row.key),
+    );
+    collect(
+      'Meal template',
+      (
+        await tx
+          .select({ key: mealTemplates.templateKey })
+          .from(mealTemplates)
+          .where(eq(mealTemplates.userId, userId))
+      ).map((row) => row.key),
+    );
+    collect(
+      'Weekly block',
+      (
+        await tx
+          .select({ key: timeBlocks.templateKey })
+          .from(timeBlocks)
+          .where(eq(timeBlocks.userId, userId))
+      ).map((row) => row.key),
+    );
+    for (const item of plan.items)
+      if (installed.has(`${item.type}:${item.key}`)) {
+        await tx
+          .insert(lifeOsSeedItems)
+          .values({ userId, itemType: item.type, templateKey: item.key })
+          .onConflictDoNothing();
+      }
+    return { ...counts, plan };
+  });
+}
