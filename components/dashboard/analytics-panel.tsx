@@ -1,6 +1,6 @@
 import type { SelectHabit, SelectHabitEntry, CompletionStats } from '@/types';
 import { calculateDailyProgress } from '@/lib/analytics/daily-progress';
-import { calculateWeeklySummary } from '@/lib/analytics/weekly-summary';
+import { calculateEightWeekSummary } from '@/lib/analytics/weekly-summary';
 import { calculateTopHabits } from '@/lib/analytics/top-habits';
 import { CompletionDonut } from '@/components/analytics/completion-donut';
 import { DailyLineChart } from '@/components/analytics/daily-line-chart';
@@ -12,6 +12,10 @@ import { NotesPreview } from '@/components/dashboard/notes-preview';
 interface AnalyticsPanelProps {
   habits: SelectHabit[];
   entries: SelectHabitEntry[];
+  weeklyHabits: SelectHabit[];
+  weeklyEntries: SelectHabitEntry[];
+  weeklyCutoff: string;
+  weekStartsOn: number;
   daysInMonth: Date[];
   today: Date;
   stats: CompletionStats;
@@ -24,6 +28,10 @@ interface AnalyticsPanelProps {
 export function AnalyticsPanel({
   habits,
   entries,
+  weeklyHabits,
+  weeklyEntries,
+  weeklyCutoff,
+  weekStartsOn,
   daysInMonth,
   today,
   stats,
@@ -33,7 +41,12 @@ export function AnalyticsPanel({
   note,
 }: AnalyticsPanelProps) {
   const dailyProgress = calculateDailyProgress(habits, entries, daysInMonth, today);
-  const weeklySummary = calculateWeeklySummary(habits, entries, daysInMonth, today);
+  const weeklySummary = calculateEightWeekSummary(
+    weeklyHabits,
+    weeklyEntries,
+    weeklyCutoff,
+    weekStartsOn,
+  );
   const topHabits = calculateTopHabits(habits, entries, daysInMonth, today, 5);
 
   return (

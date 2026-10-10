@@ -9,7 +9,15 @@ import {
 import { MonthNavigator } from '@/components/layout/month-navigator';
 import { HabitGrid } from '@/components/dashboard/habit-grid';
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
+import { HomeWeightCard } from '@/components/dashboard/home-weight-card';
 import { GridSkeleton } from '@/components/shared/loading-skeleton';
+import { getGoals } from '@/lib/dal/life';
+import { weightTrend } from '@/lib/evidence/summary';
+import { normalizeLifeArea } from '@/lib/life-areas';
+import { addCalendarDays } from '@/lib/planning/time-blocks';
+import { db } from '@/lib/db';
+import { metricEntries } from '@/lib/db/schema';
+import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import {
   getDaysInMonth,
   getTodayInTimezone,
@@ -17,6 +25,7 @@ import {
   parseYearMonth,
   toDateString,
   isValidYearMonth,
+  serverNow,
 } from '@/lib/utils/date';
 import { calculateCompletionRate } from '@/lib/analytics/completion';
 import { calculateStreaks } from '@/lib/analytics/streak';
@@ -56,11 +65,49 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const lastWeekStart = weekStart(calendarDays.at(-1)!.date, settings.weekStartsOn);
   const [wy, wm, wd] = lastWeekStart.split('-').map(Number);
   const expandedEnd = new Date(Date.UTC(wy, wm - 1, wd + 6)).toISOString().slice(0, 10);
-  const [allHabits, entries, todayNote] = await Promise.all([
-    getHistoricalHabitsByUser(userId),
-    getEntriesByUserAndDateRange(userId, expandedStart, expandedEnd),
-    getNoteByUserAndDate(userId, todayStr),
-  ]);
+  const monthEnd = calendarDays.at(-1)?.date ?? todayStr;
+  const streakCutoff = monthEnd < todayStr ? monthEnd : todayStr;
+  const chartWeekStart = weekStart(streakCutoff, settings.weekStartsOn);
+  const eightWeekStart = addCalendarDays(chartWeekStart, -49);
+  const weightSince = addCalendarDays(todayStr, -29);
+  const [allHabits, entries, weeklyEntries, todayNote, goals, recentWeights, latestWeight] =
+    await Promise.all([
+      getHistoricalHabitsByUser(userId),
+      getEntriesByUserAndDateRange(userId, expandedStart, expandedEnd),
+      getEntriesByUserAndDateRange(userId, eightWeekStart, streakCutoff),
+      getNoteByUserAndDate(userId, todayStr),
+      getGoals(userId),
+      db
+        .select({ date: metricEntries.date, value: metricEntries.value })
+        .from(metricEntries)
+        .where(
+          and(
+            eq(metricEntries.userId, userId),
+            eq(metricEntries.type, 'Body weight'),
+            eq(metricEntries.unit, 'kg'),
+            gte(metricEntries.date, weightSince),
+            lte(metricEntries.date, todayStr),
+          ),
+        ),
+      db
+        .select({ date: metricEntries.date, value: metricEntries.value })
+        .from(metricEntries)
+        .where(
+          and(
+            eq(metricEntries.userId, userId),
+            eq(metricEntries.type, 'Body weight'),
+            eq(metricEntries.unit, 'kg'),
+            lte(metricEntries.date, todayStr),
+          ),
+        )
+        .orderBy(desc(metricEntries.date), desc(metricEntries.createdAt))
+        .limit(1),
+    ]);
+  const weightPoints = weightTrend(recentWeights, settings.weekStartsOn, null).daily;
+  const fitnessGoal = goals.find(
+    (goal) =>
+      !goal.archivedAt && normalizeLifeArea(goal.area) === 'Fitness' && goal.targetUnit === 'kg',
+  );
   const habits = allHabits.filter(
     (habit) =>
       calendarDays.some((day) => isHabitActiveOn(habit, day.date)) ||
@@ -70,8 +117,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ),
   );
 
-  const monthEnd = calendarDays.at(-1)?.date ?? todayStr;
-  const streakCutoff = monthEnd < todayStr ? monthEnd : todayStr;
   const streakEntries = await getActiveHabitCompletionsThrough(userId, streakCutoff);
 
   const stats = calculateCompletionRate(habits, entries, daysInMonth, today);
@@ -107,6 +152,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             entries={entries}
             days={calendarDays}
             today={toDateString(today)}
+            timezone={settings.timezone}
+            clockStartedAt={serverNow().toISOString()}
             weekStartsOn={settings.weekStartsOn}
           />
         </Suspense>
@@ -115,6 +162,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <AnalyticsPanel
             habits={habits}
             entries={entries}
+            weeklyHabits={allHabits}
+            weeklyEntries={weeklyEntries}
+            weeklyCutoff={streakCutoff}
+            weekStartsOn={settings.weekStartsOn}
             daysInMonth={daysInMonth}
             today={today}
             stats={stats}
@@ -124,6 +175,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             note={todayNote?.content ?? ''}
           />
         </Suspense>
+        <HomeWeightCard
+          points={weightPoints}
+          latest={latestWeight[0] ?? null}
+          target={fitnessGoal?.targetValue ?? null}
+          today={todayStr}
+        />
       </div>
     </div>
   );

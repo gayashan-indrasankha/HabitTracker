@@ -21,7 +21,7 @@ export function CompletionDonut({ stats }: CompletionDonutProps) {
     return (
       <Card className="analytics-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Fixed-schedule adherence</CardTitle>
+          <CardTitle className="text-sm font-medium">Scheduled habit check-ins</CardTitle>
         </CardHeader>
         <CardContent className="flex h-48 items-center justify-center">
           <p className="text-sm text-muted-foreground">No data yet</p>
@@ -33,7 +33,7 @@ export function CompletionDonut({ stats }: CompletionDonutProps) {
   return (
     <Card className="analytics-card">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Fixed-schedule adherence</CardTitle>
+        <CardTitle className="text-sm font-medium">Scheduled habit check-ins</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="relative h-48">

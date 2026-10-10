@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { getDaysInMonth } from '@/lib/utils/date';
-import { calculateWeeklySummary } from '@/lib/analytics/weekly-summary';
+import { calculateEightWeekSummary, calculateWeeklySummary } from '@/lib/analytics/weekly-summary';
 import { WeeklyBarChart } from '@/components/analytics/weekly-bar-chart';
 import type { SelectHabit, SelectHabitEntry } from '@/types';
 
@@ -33,8 +33,8 @@ const entry = (date: string): SelectHabitEntry => ({
   updatedAt: new Date(date),
 });
 
-describe('weekly fixed-habit chart', () => {
-  it('uses the same seven-day groups as the monthly tracker', () => {
+describe('weekly scheduled habit chart', () => {
+  it('retains the month tracker grouping for month summaries', () => {
     const weeks = calculateWeeklySummary(
       [habit],
       [entry('2026-10-08'), entry('2026-10-09'), entry('2026-10-20')],
@@ -49,24 +49,33 @@ describe('weekly fixed-habit chart', () => {
       { total: 0, completed: 0, rate: null },
       { total: 0, completed: 0, rate: null },
     ]);
-    expect(
-      calculateWeeklySummary([habit], [], getDaysInMonth(2026, 2), new Date(2026, 1, 28)),
-    ).toHaveLength(4);
   });
 
-  it('shows an explicit zero instead of an empty-looking plot', () => {
-    const weeks = calculateWeeklySummary(
+  it('includes eight calendar weeks across month boundaries and excludes future days', () => {
+    const weeks = calculateEightWeekSummary(
       [habit],
-      [],
-      getDaysInMonth(2026, 10),
-      new Date(2026, 9, 9),
+      [entry('2026-10-08'), entry('2026-10-10')],
+      '2026-10-09',
     );
+    expect(weeks).toHaveLength(8);
+    expect(weeks[0].weekLabel).toBe('Aug 17');
+    expect(weeks[6]).toMatchObject({ weekLabel: 'Sep 28', completed: 0, total: 4, rate: 0 });
+    expect(weeks[7]).toMatchObject({ weekLabel: 'Oct 5', completed: 1, total: 5, rate: 20 });
+  });
+
+  it('uses the selected first day of the week', () => {
+    const weeks = calculateEightWeekSummary([habit], [], '2026-10-09', 0);
+    expect(weeks[7]).toMatchObject({ weekLabel: 'Oct 4', total: 6 });
+  });
+
+  it('shows the bar chart without the date summary cards', () => {
+    const weeks = calculateEightWeekSummary([habit], [entry('2026-10-08')], '2026-10-09');
     render(<WeeklyBarChart data={weeks} />);
-    expect(screen.getByText('0%')).toBeInTheDocument();
     expect(
-      screen.getByText('0 of 9 eligible fixed-habit occurrences completed so far'),
+      screen.getByRole('img', { name: 'Scheduled habit check-in rate for the last eight weeks' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('0/7 · 0%')).toBeInTheDocument();
-    expect(screen.getAllByText('No eligible days')).toHaveLength(3);
+    expect(
+      screen.queryByRole('list', { name: 'Weekly scheduled habit counts' }),
+    ).not.toBeInTheDocument();
   });
 });

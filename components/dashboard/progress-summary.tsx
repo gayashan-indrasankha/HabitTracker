@@ -20,7 +20,7 @@ export function ProgressSummary({
   return (
     <Card className="analytics-card h-full">
       <div className="analytics-band text-center text-xs font-extrabold uppercase tracking-wide">
-        Fixed-schedule adherence
+        Scheduled habit check-ins
       </div>
       <CardContent className="p-5 text-center">
         <p className="text-4xl font-extrabold tracking-tight text-primary">
@@ -28,12 +28,12 @@ export function ProgressSummary({
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {stats.total
-            ? `${stats.completed} of ${stats.total} fixed scheduled occurrences completed`
-            : 'No eligible fixed occurrences'}
+            ? `${stats.completed} of ${stats.total} planned check-ins completed this month`
+            : 'No scheduled check-ins yet'}
         </p>
         <div
           role="progressbar"
-          aria-label="Fixed-schedule adherence"
+          aria-label="Scheduled habit check-ins"
           aria-valuenow={stats.rate}
           aria-valuemin={0}
           aria-valuemax={100}
