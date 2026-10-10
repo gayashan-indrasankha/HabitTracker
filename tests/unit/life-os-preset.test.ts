@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { blocks, goals, habits, meals, projects, tasks, topics } from '@/lib/life-os/preset';
+import { LIFE_AREAS } from '@/lib/life-areas';
 
 describe('Personal Life OS preset', () => {
+  it('uses the current life areas for starter goals and schedule blocks', () => {
+    for (const item of [...goals, ...blocks]) expect(LIFE_AREAS).toContain(item.area);
+  });
+
   it('has stable unique keys and valid goal/project relationships', () => {
     for (const group of [goals, projects, tasks, habits, blocks, topics, meals])
       expect(new Set(group.map((item) => item.key)).size).toBe(group.length);

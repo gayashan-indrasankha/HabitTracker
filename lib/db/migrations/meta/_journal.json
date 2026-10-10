@@ -120,6 +120,55 @@
       "when": 1791535374566,
       "tag": "0016_curious_inertia",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791619146368,
+      "tag": "0017_lowly_rafael_vega",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791623629543,
+      "tag": "0018_first_stephen_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791624000000,
+      "tag": "0019_life_areas",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791624300000,
+      "tag": "0020_legacy_area_typo",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791624600000,
+      "tag": "0021_short_life_area_names",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791652436363,
+      "tag": "0022_fuzzy_spiral",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791653387543,
+      "tag": "0023_exotic_solo",
+      "breakpoints": true
     }
   ]
 }

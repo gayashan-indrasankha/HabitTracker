@@ -16,7 +16,7 @@ const fullJournal = JSON.parse(await readFile(join(folder, 'meta', '_journal.jso
 const files = await readdir(folder);
 assert.equal(
   fullJournal.entries.length,
-  17,
+  22,
   'Review the fixture boundaries when migrations change.',
 );
 for (const [index, entry] of fullJournal.entries.entries()) {
@@ -67,7 +67,7 @@ async function fixture(query, boundary) {
     [goal.id],
   );
   const [task] = await query(
-    "INSERT INTO tasks (user_id,goal_id,project_id,title,is_milestone,status) VALUES ('owner',$1,$2,'Legacy milestone',true,'done') RETURNING id",
+    "INSERT INTO tasks (user_id,goal_id,project_id,title,area,is_milestone,status) VALUES ('owner',$1,$2,'Legacy milestone','Career',true,'done') RETURNING id",
     [goal.id, project.id],
   );
   const [block] = await query(
@@ -142,7 +142,7 @@ async function fixture(query, boundary) {
   return ids;
 }
 
-async function assertPreserved(query, ids, boundary) {
+async function assertPreserved(query, ids, boundary, expectBackfill = true) {
   const one = async (table, id) => (await query(`SELECT * FROM "${table}" WHERE id=$1`, [id]))[0];
   assert.equal((await one('habits', ids.habit)).archived, true);
   const entry = await one('habit_entries', ids.entry);
@@ -181,11 +181,19 @@ async function assertPreserved(query, ids, boundary) {
   assert.equal((await one('weekly_reviews', ids.review)).user_id, 'owner');
   assert.equal((await one('metric_entries', ids.metric)).value, 70);
   assert.equal((await one('goals', ids.goal)).template_key, 'legacy-goal');
+  if (expectBackfill) {
+    assert.equal((await one('goals', ids.goal)).area, 'Career');
+    assert.equal((await one('tasks', ids.task)).area, 'Career');
+    assert.equal((await one('time_blocks', ids.block)).category, 'Career');
+  }
   assert.equal((await one('projects', ids.project)).template_key, 'legacy-project');
   if (boundary >= 6)
     assert.equal((await one('subject_assessments', ids.assessment)).subject_id, ids.subject);
-  if (boundary >= 7)
+  if (boundary >= 7) {
     assert.equal((await one('time_block_revisions', ids.revision)).block_id, ids.block);
+    if (expectBackfill)
+      assert.equal((await one('time_block_revisions', ids.revision)).category, 'Career');
+  }
   if (boundary >= 9) assert.equal((await one('time_off_days', ids.timeOff)).user_id, 'owner');
   if (boundary >= 11) {
     assert.equal(
@@ -193,6 +201,8 @@ async function assertPreserved(query, ids, boundary) {
       ids.application,
     );
     assert.equal((await one('interview_practices', ids.interview)).topic_id, ids.interviewTopic);
+    if (expectBackfill)
+      assert.equal((await one('interview_practices', ids.interview)).topic_text, 'JOINs');
     if (boundary === 12) {
       const result = await query('SELECT correct,total FROM interview_practices WHERE id=$1', [
         ids.interview,
@@ -246,7 +256,7 @@ async function verifyFresh(engine, makeDatabase) {
     await database.migrate(folder);
     const ids = await fixture(database.query, 12);
     await database.migrate(folder);
-    await assertPreserved(database.query, ids, 12);
+    await assertPreserved(database.query, ids, 12, false);
     const count = await database.query(
       'SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations',
     );

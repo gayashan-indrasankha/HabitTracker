@@ -1,11 +1,12 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { normalizeLifeArea } from '@/lib/life-areas';
 
 export function AreaField({
   label,
   options,
-  defaultValue = 'University',
+  defaultValue = options[0] ?? '',
   className = '',
 }: {
   label: string;
@@ -14,8 +15,12 @@ export function AreaField({
   className?: string;
 }) {
   const id = useId();
-  const [selection, setSelection] = useState(options.includes(defaultValue) ? defaultValue : '');
-  const [newArea, setNewArea] = useState(options.includes(defaultValue) ? '' : defaultValue);
+  const choices = [...new Set(options.map(normalizeLifeArea))];
+  const selectedDefault = normalizeLifeArea(defaultValue);
+  const [selection, setSelection] = useState(
+    choices.includes(selectedDefault) ? selectedDefault : '',
+  );
+  const [newArea, setNewArea] = useState(choices.includes(selectedDefault) ? '' : selectedDefault);
 
   return (
     <div className={`text-sm font-medium ${className}`}>
@@ -27,7 +32,7 @@ export function AreaField({
         onChange={(event) => setSelection(event.target.value)}
         className="mt-1.5 min-h-11 w-full rounded-lg border bg-background px-3 font-normal"
       >
-        {options.map((area) => (
+        {choices.map((area) => (
           <option key={area} value={area}>
             {area}
           </option>

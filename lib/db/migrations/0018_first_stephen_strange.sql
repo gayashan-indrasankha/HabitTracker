@@ -1,0 +1,1 @@
+ALTER TABLE "application_stage_history" ADD COLUMN "stage_on" date;

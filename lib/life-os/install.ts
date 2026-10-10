@@ -536,9 +536,9 @@ export async function installPersonalLifeOs(userId: string, options: SetupOption
           details: item.details,
           area:
             item.section === 'university'
-              ? 'University'
+              ? 'Education & Skills'
               : item.section === 'english'
-                ? 'Communication'
+                ? 'Personal Development'
                 : 'Career',
           goalId: item.goal
             ? goalIds.get(item.goal)

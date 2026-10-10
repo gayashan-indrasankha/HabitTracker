@@ -1,3 +1,5 @@
+import { normalizeLifeArea } from '@/lib/life-areas';
+
 export const PRESET_ID = 'personal-life-os';
 export const PRESET_VERSION = 2;
 
@@ -50,7 +52,7 @@ export const goals: GoalPreset[] = [
   {
     key: 'university',
     section: 'university',
-    area: 'University',
+    area: 'Education & Skills',
     name: 'Aim for A grades in five subjects',
     description:
       'Replace the five subject placeholders with your real subjects; enter grades only when known.',
@@ -58,7 +60,7 @@ export const goals: GoalPreset[] = [
   {
     key: 'industry',
     section: 'industry',
-    area: 'Industry Project',
+    area: 'Career',
     name: 'Complete UCSC Industry Project successfully',
   },
   {
@@ -76,13 +78,13 @@ export const goals: GoalPreset[] = [
   {
     key: 'interviews',
     section: 'interview',
-    area: 'Interview Preparation',
+    area: 'Career',
     name: 'Prepare for SE and DevOps internship interviews',
   },
   {
     key: 'communication',
     section: 'english',
-    area: 'Communication',
+    area: 'Personal Development',
     name: 'Speak technical and professional English confidently',
   },
   {
@@ -105,7 +107,7 @@ export const goals: GoalPreset[] = [
   {
     key: 'sleep-recovery',
     section: 'recovery',
-    area: 'Sleep & Recovery',
+    area: 'Fitness',
     name: 'Protect sleep, attention and recovery',
   },
 ];
@@ -292,7 +294,7 @@ const block = (
   key,
   section,
   name,
-  area,
+  area: normalizeLifeArea(area),
   mask: Array.from({ length: 7 }, (_, index) => (index === day ? '1' : '0')).join(''),
   start,
   end,

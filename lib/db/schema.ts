@@ -217,6 +217,8 @@ export const mealTemplates = pgTable(
     preferredTime: varchar('preferred_time', { length: 5 }),
     plannedCalories: integer('planned_calories'),
     plannedProtein: integer('planned_protein'),
+    plannedCarbs: integer('planned_carbs'),
+    plannedFat: integer('planned_fat'),
     active: boolean('active').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -238,7 +240,11 @@ export const mealLogs = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     mealId: uuid('meal_id').notNull(),
     date: date('date').notNull(),
-    status: varchar('status', { length: 20 }).notNull(),
+    status: varchar('status', { length: 20 }),
+    actualCalories: integer('actual_calories'),
+    actualProtein: integer('actual_protein'),
+    actualCarbs: integer('actual_carbs'),
+    actualFat: integer('actual_fat'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -803,7 +809,8 @@ export const interviewPractices = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    topicId: uuid('topic_id').notNull(),
+    topicId: uuid('topic_id'),
+    topicText: varchar('topic_text', { length: 160 }),
     date: date('date').notNull(),
     roleTrack: varchar('role_track', { length: 16 }).notNull(),
     type: varchar('type', { length: 40 }).notNull(),
@@ -932,6 +939,7 @@ export const applicationStageHistory = pgTable(
     applicationId: uuid('application_id').notNull(),
     fromStage: varchar('from_stage', { length: 32 }),
     toStage: varchar('to_stage', { length: 32 }).notNull(),
+    stageOn: date('stage_on'),
     changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
