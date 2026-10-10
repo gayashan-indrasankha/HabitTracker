@@ -194,103 +194,7 @@ test('goal and project edits, priority management, lighter day, and mobile contr
   await expect(page.getByRole('heading', { name: `${projectName} edited` })).toBeVisible();
 });
 
-test('future weekday and metadata edits keep a completed earlier occurrence', async ({ page }) => {
-  test.setTimeout(180_000);
-  test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
-  const tag = Date.now();
-  const title = `P1 series ${tag}`;
-  await page.goto('/register');
-  await page.getByLabel('Your name').fill('P1 Schedule Tester');
-  await page.getByLabel('Email address').fill(`p1-series-${tag}@example.test`);
-  await page.getByLabel('Password', { exact: true }).fill('Editing-test-password-42');
-  await page.getByLabel('Confirm password').fill('Editing-test-password-42');
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 90_000 });
-  await page.goto('/week?date=2026-10-05');
-  await page.getByText('Time blocks and detailed planning (optional)').click();
-  const add = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add block' }) });
-  await add.locator('[name="title"]').fill(title);
-  await add.locator('[name="localStartTime"]').fill('09:00');
-  await add.locator('[name="localEndTime"]').fill('10:00');
-  for (const day of ['1', '2', '3', '4'])
-    await add.locator(`[name="weekday"][value="${day}"]`).uncheck();
-  await add.locator('[name="startDate"]').fill('2026-10-05');
-  await add.getByRole('button', { name: 'Add block' }).click();
-  const previous = page.locator('article').filter({ hasText: title }).first();
-  await previous.getByRole('button', { name: 'Complete' }).click();
-  await expect(previous).toContainText('completed');
-  const series = page
-    .locator('li')
-    .filter({ hasText: title })
-    .filter({ has: page.getByText('Edit series details') })
-    .first();
-  await series.getByText('Edit series details').click();
-  const edit = series
-    .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Save block' }) });
-  await edit.locator('[name="effectiveDate"]').fill('2026-10-09');
-  await edit.locator('[name="title"]').fill(`${title} changed`);
-  await edit.locator('[name="localStartTime"]').fill('14:00');
-  await edit.locator('[name="localEndTime"]').fill('15:00');
-  await edit.locator('[name="weekday"][value="0"]').uncheck();
-  await edit.locator('[name="weekday"][value="1"]').check();
-  await edit.getByRole('button', { name: 'Check conflicts' }).click();
-  await expect(edit.getByRole('status')).toContainText('No conflicts detected');
-  await expect(edit.locator('[name="localStartTime"]')).toHaveValue('14:00');
-  await edit.getByRole('button', { name: 'Save block' }).click();
-  await expect(series.getByRole('status')).toContainText('Time block edited');
-  await page.reload();
-  await page.getByText('Time blocks and detailed planning (optional)').click();
-  await expect(page.locator('article').filter({ hasText: title }).first()).toContainText(
-    'completed',
-  );
-  await expect(page.locator('article').filter({ hasText: title }).first()).toContainText('09:00');
-  await page.goto('/week?date=2026-10-12');
-  await page.getByText('Time blocks and detailed planning (optional)').click();
-  await expect(page.locator('article').filter({ hasText: `${title} changed` })).toHaveCount(1);
-  await expect(
-    page
-      .locator('article')
-      .filter({ hasText: `${title} changed` })
-      .first(),
-  ).toContainText('14:00');
-
-  const otherBlock = page
-    .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Add block' }) });
-  await otherBlock.locator('[name="title"]').fill(`Conflicting block ${tag}`);
-  await otherBlock.locator('[name="localStartTime"]').fill('16:00');
-  await otherBlock.locator('[name="localEndTime"]').fill('17:00');
-  await otherBlock.locator('[name="startDate"]').fill('2026-10-12');
-  for (const day of ['0', '2', '3', '4'])
-    await otherBlock.locator(`[name="weekday"][value="${day}"]`).uncheck();
-  await otherBlock.getByRole('button', { name: 'Add block' }).click();
-  await expect(page.getByRole('heading', { name: `Conflicting block ${tag}` })).toBeVisible();
-  const changedSeries = page
-    .locator('li')
-    .filter({ hasText: `${title} changed` })
-    .filter({ has: page.getByText('Edit series details') })
-    .first();
-  await changedSeries.getByText('Edit series details').click();
-  const preview = changedSeries
-    .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Save block' }) });
-  await preview.locator('[name="effectiveDate"]').fill('2026-10-19');
-  await preview.locator('[name="localStartTime"]').fill('16:00');
-  await preview.locator('[name="localEndTime"]').fill('17:00');
-  await preview.getByRole('button', { name: 'Check conflicts' }).click();
-  await expect(preview.getByRole('alert')).toContainText('Overlaps');
-  await page.goto('/week?date=2026-10-19');
-  await page.getByText('Time blocks and detailed planning (optional)').click();
-  await expect(
-    page
-      .locator('article')
-      .filter({ hasText: `${title} changed` })
-      .first(),
-  ).toContainText('14:00');
-});
-
-test('a second account cannot edit another account’s goal, project, task, priority, or block', async ({
+test('a second account cannot edit another account’s goal, project, task, or priority', async ({
   page,
   browser,
 }) => {
@@ -360,27 +264,7 @@ test('a second account cannot edit another account’s goal, project, task, prio
       .filter({ has: target.getByRole('button', { name: 'Save task' }) });
     const taskId = await taskEdit.locator('[name="id"]').inputValue();
 
-    await target.goto('/week?date=2026-10-05');
-    await target.getByText('Time blocks and detailed planning (optional)').click();
-    const blockCreate = target
-      .locator('form')
-      .filter({ has: target.getByRole('button', { name: 'Add block' }) });
-    await blockCreate.locator('[name="title"]').fill(`${prefix} block`);
-    await blockCreate.locator('[name="localStartTime"]').fill('09:00');
-    await blockCreate.locator('[name="localEndTime"]').fill('10:00');
-    await blockCreate.locator('[name="startDate"]').fill('2026-10-05');
-    await blockCreate.getByRole('button', { name: 'Add block' }).click();
-    const blockRow = target
-      .locator('li')
-      .filter({ hasText: `${prefix} block` })
-      .filter({ has: target.getByText('Edit series details') })
-      .first();
-    await blockRow.getByText('Edit series details').click();
-    const blockEdit = blockRow
-      .locator('form')
-      .filter({ has: target.getByRole('button', { name: 'Save block' }) });
-    const blockId = await blockEdit.locator('[name="id"]').inputValue();
-    return { goalId, projectId, taskId, blockId };
+    return { goalId, projectId, taskId };
   }
 
   await register(page, 'Owner P1');
@@ -446,24 +330,6 @@ test('a second account cannot edit another account’s goal, project, task, prio
     }, owner.taskId);
     await priorityForm.getByRole('button', { name: 'Add to slot' }).click();
     await expect(priorityForm.getByRole('alert')).toContainText('Task is unavailable');
-
-    await other.goto('/week?date=2026-10-05');
-    await other.getByText('Time blocks and detailed planning (optional)').click();
-    const otherBlock = other
-      .locator('li')
-      .filter({ hasText: `Other ${tag} block` })
-      .filter({ has: other.getByText('Edit series details') })
-      .first();
-    await otherBlock.getByText('Edit series details').click();
-    const blockForm = otherBlock
-      .locator('form')
-      .filter({ has: other.getByRole('button', { name: 'Save block' }) });
-    await blockForm.locator('[name="id"]').evaluate((input: HTMLInputElement, id) => {
-      input.value = id;
-    }, owner.blockId);
-    await blockForm.locator('[name="effectiveDate"]').fill('2026-10-09');
-    await blockForm.getByRole('button', { name: 'Save block' }).click();
-    await expect(blockForm.getByRole('alert')).toContainText('Time block not found');
   } finally {
     await otherContext.close();
   }

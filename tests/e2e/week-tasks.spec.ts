@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('Week starts with tasks and preserves optional schedule access', async ({ page }) => {
+test('Week stays focused on tasks', async ({ page }) => {
   test.setTimeout(120_000);
   test.skip(!process.env.HABITFLOW_E2E_ISOLATED, 'Requires an isolated test database.');
   await page.goto('/register');
@@ -14,7 +14,7 @@ test('Week starts with tasks and preserves optional schedule access', async ({ p
   await page.goto('/week?date=2026-10-09');
   await expect(page.getByRole('heading', { name: 'Your week' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Tasks by day' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Weekly workload' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Weekly workload' })).toHaveCount(0);
   const add = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add task' }) });
   await add.locator('[name="title"]').fill('Prepare a presentation');
   await add.locator('[name="scheduledDate"]').fill('2026-10-10');
@@ -44,7 +44,9 @@ test('Week starts with tasks and preserves optional schedule access', async ({ p
   const plan = page
     .locator('form')
     .filter({ has: page.getByRole('button', { name: 'Add to week' }) });
-  await plan.locator('[name="id"]').selectOption({ label: 'Review notes' });
+  await plan.getByRole('combobox', { name: 'Task' }).fill('review');
+  await expect(plan.getByRole('option', { name: 'Review notes' })).toBeVisible();
+  await plan.getByRole('option', { name: 'Review notes' }).click();
   await plan.locator('[name="date"]').fill('2026-10-11');
   await plan.getByRole('button', { name: 'Add to week' }).click();
   await expect(page.getByRole('region', { name: 'Tasks by day' })).toContainText('Review notes');
@@ -62,6 +64,7 @@ test('Week starts with tasks and preserves optional schedule access', async ({ p
   await expect(sunday).not.toContainText('Review notes');
   await expect(page.getByRole('region', { name: 'Tasks by day' })).toContainText('Review notes');
 
-  await page.getByText('Time blocks and detailed planning (optional)').click();
-  await expect(page.getByRole('heading', { name: 'Weekly workload' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Tasks by day' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Weekly workload' })).toHaveCount(0);
+  await expect(page.getByText('Time blocks and detailed planning (optional)')).toHaveCount(0);
 });
