@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { ChevronDown, ListChecks, NotebookPen } from 'lucide-react';
-import { z } from 'zod';
+import { ChevronDown, ListChecks, NotebookPen, Scale } from 'lucide-react';
 import { format } from 'date-fns';
 import { requireUser } from '@/lib/auth/session';
 import { getUserSettings } from '@/lib/dal/user-settings';
@@ -18,23 +17,26 @@ import {
 import { addCalendarDays } from '@/lib/planning/time-blocks';
 import { focusedDayTasks } from '@/lib/planning/today-focus';
 import { PriorityPanel } from '@/components/life/priority-panel';
+import { WeekTaskItem } from '@/components/life/week-task-item';
 import { PriorityPicker } from '@/components/life/priority-picker';
 import { DayModeControl } from '@/components/life/day-mode-control';
 import { TodayHabit } from '@/components/life/today-habit';
 import { DailyNoteEditor } from '@/components/notes/daily-note-editor';
 import { MealChecklist } from '@/components/nutrition/meal-checklist';
+import { ActionForm } from '@/components/life/action-form';
+import { addWeightAction, changeWeightAction } from '@/lib/actions/evidence-actions';
 import { getMealLogs, getMealTemplates } from '@/lib/dal/nutrition';
 import { mealWeekSummary, type MealStatus } from '@/lib/nutrition/summary';
-import { and, asc, eq, lte, notInArray } from 'drizzle-orm';
+import { and, asc, desc, eq, lte, notInArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { internshipApplications, subjectTopics } from '@/lib/db/schema';
+import { internshipApplications, metricEntries } from '@/lib/db/schema';
 
 export const metadata = { title: 'Today | LifeOS' };
 
 export default async function TodayPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mealDate?: string; finish?: string }>;
+  searchParams: Promise<{ finish?: string }>;
 }) {
   const user = await requireUser();
   const settings = await getUserSettings(user.id);
@@ -42,60 +44,62 @@ export default async function TodayPage({
   const date = toDateString(now);
   const tomorrow = addCalendarDays(date, 1);
   const params = await searchParams;
-  const requestedMealDate = params.mealDate;
   const showFinish = params.finish === '1';
-  const mealDate =
-    requestedMealDate &&
-    z.iso.date().safeParse(requestedMealDate).success &&
-    requestedMealDate <= date
-      ? requestedMealDate
-      : date;
-  const mealWeekStart = weekStart(mealDate, settings.weekStartsOn);
   const start = weekStart(date, settings.weekStartsOn);
-  const [
-    allTasks,
-    dayPlan,
-    habits,
-    entries,
-    note,
-    projects,
-    followUps,
-    revisionsDue,
-    meals,
-    mealLogs,
-  ] = await Promise.all([
-    getTasks(user.id),
-    getDayPlan(user.id, date),
-    getActiveHabitsByUser(user.id),
-    getEntriesByUserAndDateRange(user.id, start, addCalendarDays(start, 6)),
-    getNoteByUserAndDate(user.id, date),
-    getProjects(user.id),
-    db
-      .select()
-      .from(internshipApplications)
-      .where(
-        and(
-          eq(internshipApplications.userId, user.id),
-          lte(internshipApplications.followUpDate, date),
-          notInArray(internshipApplications.stage, ['saved', 'rejected', 'withdrawn', 'offer']),
-        ),
-      )
-      .orderBy(asc(internshipApplications.followUpDate))
-      .limit(1),
-    db
-      .select()
-      .from(subjectTopics)
-      .where(and(eq(subjectTopics.userId, user.id), lte(subjectTopics.nextRevisionDate, date)))
-      .orderBy(asc(subjectTopics.nextRevisionDate))
-      .limit(1),
-    getMealTemplates(user.id),
-    getMealLogs(user.id, mealWeekStart, addCalendarDays(mealWeekStart, 6)),
-  ]);
+  const [allTasks, dayPlan, habits, entries, note, projects, followUps, meals, mealLogs, weights] =
+    await Promise.all([
+      getTasks(user.id),
+      getDayPlan(user.id, date),
+      getActiveHabitsByUser(user.id),
+      getEntriesByUserAndDateRange(user.id, start, addCalendarDays(start, 6)),
+      getNoteByUserAndDate(user.id, date),
+      getProjects(user.id),
+      db
+        .select()
+        .from(internshipApplications)
+        .where(
+          and(
+            eq(internshipApplications.userId, user.id),
+            lte(internshipApplications.followUpDate, date),
+            notInArray(internshipApplications.stage, ['saved', 'rejected', 'withdrawn', 'offer']),
+          ),
+        )
+        .orderBy(asc(internshipApplications.followUpDate))
+        .limit(1),
+      getMealTemplates(user.id),
+      getMealLogs(user.id, start, addCalendarDays(start, 6)),
+      db
+        .select()
+        .from(metricEntries)
+        .where(
+          and(
+            eq(metricEntries.userId, user.id),
+            eq(metricEntries.type, 'Body weight'),
+            eq(metricEntries.unit, 'kg'),
+            lte(metricEntries.date, date),
+          ),
+        )
+        .orderBy(desc(metricEntries.date), desc(metricEntries.createdAt))
+        .limit(1),
+    ]);
+  const latestWeight = weights[0] ?? null;
+  const todayWeight = latestWeight?.date === date ? latestWeight : null;
   const mode = dayPlan?.mode === 'minimum' || dayPlan?.mode === 'reduced' ? dayPlan.mode : 'normal';
   const selected = allTasks
     .filter((task) => task.scheduledDate === date && task.dailyPriority)
     .sort((a, b) => (a.dailyPriority ?? 9) - (b.dailyPriority ?? 9))
     .slice(0, 3);
+  const selectedIds = new Set(selected.map((task) => task.id));
+  const otherTodayTasks = allTasks
+    .filter(
+      (task) =>
+        task.scheduledDate === date && task.status !== 'cancelled' && !selectedIds.has(task.id),
+    )
+    .sort(
+      (a, b) =>
+        Number(a.status === 'done') - Number(b.status === 'done') || a.title.localeCompare(b.title),
+    );
+  const otherOpenCount = otherTodayTasks.filter((task) => task.status !== 'done').length;
   const backlog = allTasks.filter(
     (task) =>
       task.status !== 'done' &&
@@ -210,8 +214,12 @@ export default async function TodayPage({
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               {selected.length
-                ? 'You are caught up with your focus tasks and checklists.'
-                : 'Nothing is due right now. Add a focus task if you want one.'}
+                ? otherOpenCount
+                  ? 'Your focus tasks are done. Other planned tasks are below.'
+                  : 'You are caught up with your focus tasks and checklists.'
+                : otherTodayTasks.length
+                  ? 'You have tasks planned for today. Choose a focus task or review them below.'
+                  : 'Nothing is due right now. Add a focus task if you want one.'}
             </p>
             {selected.length === 0 && (
               <a
@@ -224,7 +232,7 @@ export default async function TodayPage({
           </div>
         )}
       </section>
-      {(followUps.length > 0 || revisionsDue.length > 0) && (
+      {followUps.length > 0 && (
         <section className="rounded-2xl border bg-card p-4 text-sm">
           <h2 className="font-semibold">Worth following up</h2>
           <ul className="mt-1 list-inside list-disc">
@@ -234,14 +242,6 @@ export default async function TodayPage({
                   {item.company} follow-up
                 </Link>{' '}
                 · {item.followUpDate}
-              </li>
-            ))}
-            {revisionsDue.map((item) => (
-              <li key={item.id}>
-                <Link href="/goals/evidence#university" className="text-primary underline">
-                  Revise {item.title}
-                </Link>{' '}
-                · {item.nextRevisionDate}
               </li>
             ))}
           </ul>
@@ -267,6 +267,26 @@ export default async function TodayPage({
         <div id="today-priorities">
           <PriorityPanel date={date} mode={mode} selected={selected} choices={backlogChoices} />
         </div>
+        {otherTodayTasks.length > 0 && (
+          <section id="today-other-tasks" className="rounded-2xl border bg-card p-5">
+            <div className="mb-3">
+              <h2 className="text-xl font-bold">Other Tasks ({otherTodayTasks.length})</h2>
+              <p className="text-sm text-muted-foreground">
+                {otherOpenCount ? `${otherOpenCount} still to do` : 'All done'}
+              </p>
+            </div>
+            <ul className="space-y-2">
+              {otherTodayTasks.map((task) => (
+                <WeekTaskItem
+                  key={task.id}
+                  task={{ id: task.id, title: task.title, area: task.area, status: task.status }}
+                  date={date}
+                  weekStart={date}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
         <div className="space-y-5">
           <section id="today-habits" className="rounded-2xl border bg-card p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -299,24 +319,89 @@ export default async function TodayPage({
               <p className="text-sm text-muted-foreground">No habits to check off today.</p>
             )}
           </section>
+          <section id="today-weight" className="rounded-2xl border bg-card p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Scale aria-hidden="true" className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight">Today’s weight</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Record your measured weight in kilograms to track your progress.
+                  </p>
+                </div>
+              </div>
+              {latestWeight && (
+                <p className="rounded-full bg-primary/10 px-3 py-2 text-sm text-primary">
+                  {todayWeight ? 'Recorded today' : `Last recorded ${latestWeight.date}`}:{' '}
+                  <span className="font-bold tabular-nums">{latestWeight.value} kg</span>
+                </p>
+              )}
+            </div>
+            <ActionForm
+              key={todayWeight?.id ?? 'new'}
+              action={todayWeight ? changeWeightAction : addWeightAction}
+              submitLabel={todayWeight ? 'Update weight' : 'Save weight'}
+              className="mt-5 flex flex-wrap items-end gap-3 rounded-xl border bg-muted/30 p-4"
+            >
+              <input type="hidden" name="date" value={date} />
+              {todayWeight && (
+                <>
+                  <input type="hidden" name="id" value={todayWeight.id} />
+                  <input type="hidden" name="operation" value="edit" />
+                  <input type="hidden" name="note" value={todayWeight.note ?? ''} />
+                </>
+              )}
+              <label className="block w-full text-sm font-semibold sm:w-52">
+                Weight (kg)
+                <input
+                  type="number"
+                  name="value"
+                  step="0.1"
+                  min="20"
+                  max="500"
+                  required
+                  defaultValue={todayWeight?.value ?? ''}
+                  placeholder="e.g. 70.5"
+                  className="mt-1.5 min-h-11 w-full rounded-lg border bg-card px-3 text-sm font-normal"
+                />
+              </label>
+            </ActionForm>
+          </section>
           {settings.nutritionEnabled && (
             <MealChecklist
-              key={mealDate}
-              date={mealDate}
-              today={date}
+              key={date}
+              date={date}
               meals={meals.filter(
                 (meal) =>
                   meal.active ||
-                  mealLogs.some((log) => log.mealId === meal.id && log.date === mealDate),
+                  mealLogs.some((log) => log.mealId === meal.id && log.date === date),
               )}
               initialStatuses={Object.fromEntries(
                 mealLogs
-                  .filter((log) => log.date === mealDate)
+                  .filter((log) => log.date === date && log.status != null)
                   .map((log) => [log.mealId, log.status as MealStatus]),
               )}
+              initialActuals={Object.fromEntries(
+                mealLogs
+                  .filter((log) => log.date === date)
+                  .map((log) => [
+                    log.mealId,
+                    {
+                      actualCalories: log.actualCalories,
+                      actualProtein: log.actualProtein,
+                      actualCarbs: log.actualCarbs,
+                      actualFat: log.actualFat,
+                    },
+                  ]),
+              )}
               summary={mealWeekSummary(
-                mealLogs.map((log) => ({ date: log.date, status: log.status as MealStatus })),
-                mealWeekStart,
+                mealLogs.map((log) => ({
+                  date: log.date,
+                  status: log.status as MealStatus | null,
+                })),
+                start,
                 date,
               )}
             />
