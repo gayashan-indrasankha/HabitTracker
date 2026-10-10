@@ -35,6 +35,11 @@ try {
   );
   assert.equal(scoredInterview.rows[0].correct, 2);
   assert.equal(scoredInterview.rows[0].total, 5);
+  const freeTextInterview = await client.query(
+    "INSERT INTO interview_practices (user_id,topic_text,date,role_track,type,duration_minutes) VALUES ('owner','System design','2026-10-08','SE','mock',30) RETURNING topic_id,topic_text",
+  );
+  assert.equal(freeTextInterview.rows[0].topic_id, null);
+  assert.equal(freeTextInterview.rows[0].topic_text, 'System design');
   const application = await client.query(
     "INSERT INTO internship_applications (user_id,company,role_title,role_track) VALUES ('owner','Example','SE Intern','SE') RETURNING id",
   );

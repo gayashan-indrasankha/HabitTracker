@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lt } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/session';
@@ -11,7 +11,6 @@ import {
   grammarMistakes,
   internshipApplications,
   interviewPractices,
-  interviewTopics,
   metricEntries,
   milestoneCriteria,
   milestoneReviewHistory,
@@ -22,7 +21,8 @@ import {
   topicPractices,
 } from '@/lib/db/schema';
 import { getUserSettings } from '@/lib/dal/user-settings';
-import { getTodayInTimezone, toDateString } from '@/lib/utils/date';
+import { fromZonedTime, getTodayInTimezone, serverNow, toDateString } from '@/lib/utils/date';
+import { addCalendarDays } from '@/lib/planning/time-blocks';
 import type { LifeActionState } from './life-actions';
 import { canAcceptMilestone, validScoredAttempt } from '@/lib/evidence/summary';
 
@@ -49,11 +49,22 @@ const optionalMinutes = z
   .transform((item) => (item === '' ? null : item));
 const title = z.string().trim().min(1).max(160);
 const refresh = () => {
-  for (const path of ['/goals', '/goals/evidence', '/review', '/today']) revalidatePath(path);
+  for (const path of ['/dashboard', '/goals', '/goals/evidence', '/review', '/today'])
+    revalidatePath(path);
 };
 async function todayFor(userId: string) {
   const settings = await getUserSettings(userId);
   return toDateString(getTodayInTimezone(settings.timezone));
+}
+
+async function sameDayEditWindowFor(userId: string) {
+  const settings = await getUserSettings(userId);
+  const today = toDateString(getTodayInTimezone(settings.timezone));
+  return {
+    today,
+    start: fromZonedTime(`${today}T00:00:00`, settings.timezone),
+    end: fromZonedTime(`${addCalendarDays(today, 1)}T00:00:00`, settings.timezone),
+  };
 }
 
 export async function saveTopicAction(
@@ -308,27 +319,6 @@ export async function saveMilestoneReviewAction(
   return result;
 }
 
-export async function addInterviewTopicAction(
-  _: LifeActionState,
-  form: FormData,
-): Promise<LifeActionState> {
-  const userId = (await requireUser()).id;
-  const parsed = z
-    .object({
-      category: z.string().trim().min(1).max(80),
-      title,
-      roleTrack: z.enum(['Shared', 'SE', 'DevOps', 'QA']),
-    })
-    .safeParse({
-      category: form.get('category'),
-      title: form.get('title'),
-      roleTrack: form.get('roleTrack'),
-    });
-  if (!parsed.success) return bad(parsed.error);
-  await db.insert(interviewTopics).values({ userId, ...parsed.data });
-  refresh();
-  return { success: 'Interview topic added.' };
-}
 export async function addInterviewPracticeAction(
   _: LifeActionState,
   form: FormData,
@@ -336,64 +326,96 @@ export async function addInterviewPracticeAction(
   const userId = (await requireUser()).id;
   const parsed = z
     .object({
-      topicId: z.uuid(),
+      topic: z.string().trim().min(1).max(160),
       date: z.iso.date(),
       roleTrack: z.enum(['SE', 'DevOps', 'QA']),
       type: z.enum(['mock', 'technical_question', 'coding', 'explanation']),
-      prompt: optionalText(2000),
-      durationMinutes: optionalMinutes,
-      correct: z.union([z.literal(''), z.coerce.number().int().min(0).max(10000)]),
-      total: z.union([z.literal(''), z.coerce.number().int().min(0).max(10000)]),
-      technical: optionalRating,
-      approach: optionalRating,
-      clarity: optionalRating,
-      tradeoffs: optionalRating,
-      externalRating: optionalRating,
-      strengths: optionalText(1000),
-      weaknesses: optionalText(1000),
-      nextAction: optionalText(500),
+      durationMinutes: z.coerce.number().int().min(1).max(1440),
     })
     .safeParse({
-      topicId: form.get('topicId'),
+      topic: value(form, 'topic'),
       date: form.get('date'),
       roleTrack: form.get('roleTrack'),
       type: form.get('type'),
-      prompt: value(form, 'prompt'),
       durationMinutes: value(form, 'durationMinutes'),
-      correct: value(form, 'correct'),
-      total: value(form, 'total'),
-      technical: value(form, 'technical'),
-      approach: value(form, 'approach'),
-      clarity: value(form, 'clarity'),
-      tradeoffs: value(form, 'tradeoffs'),
-      externalRating: value(form, 'externalRating'),
-      strengths: value(form, 'strengths'),
-      weaknesses: value(form, 'weaknesses'),
-      nextAction: value(form, 'nextAction'),
     });
   if (!parsed.success) return bad(parsed.error);
-  const { correct, total, ...input } = parsed.data;
-  if (!validScoredAttempt(correct === '' ? null : correct, total === '' ? null : total))
-    return fail('Enter both score fields with 0 ≤ correct ≤ total and total above zero.');
+  const { topic, ...input } = parsed.data;
   if (input.date > (await todayFor(userId))) return fail('Practice date cannot be in the future.');
-  const topic = (
-    await db
-      .select()
-      .from(interviewTopics)
-      .where(and(eq(interviewTopics.userId, userId), eq(interviewTopics.id, input.topicId)))
-      .limit(1)
-  )[0];
-  if (!topic || !['Shared', input.roleTrack].includes(topic.roleTrack))
-    return fail('Choose a topic for this role.');
-  await db.insert(interviewPractices).values({
-    userId,
-    ...input,
-    correct: correct === '' ? null : correct,
-    total: total === '' ? null : total,
-  });
+  await db
+    .insert(interviewPractices)
+    .values({ userId, topicText: topic, ...input, createdAt: serverNow() });
   refresh();
-  return { success: 'Interview practice recorded as assessment evidence.' };
+  return { success: 'Interview practice recorded.' };
 }
+
+export async function updateInterviewPracticeAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const parsed = z
+    .object({
+      id: z.uuid(),
+      date: z.iso.date(),
+      topic: z.string().trim().min(1).max(160),
+      roleTrack: z.enum(['SE', 'DevOps', 'QA']),
+      type: z.enum(['mock', 'technical_question', 'coding', 'explanation']),
+      durationMinutes: optionalMinutes,
+    })
+    .safeParse({
+      id: form.get('id'),
+      date: form.get('date'),
+      topic: value(form, 'topic'),
+      roleTrack: form.get('roleTrack'),
+      type: form.get('type'),
+      durationMinutes: value(form, 'durationMinutes'),
+    });
+  if (!parsed.success) return bad(parsed.error);
+  const { id, topic, ...input } = parsed.data;
+  const { today, start, end } = await sameDayEditWindowFor(userId);
+  if (input.date > today) return fail('Practice date cannot be in the future.');
+  const [updated] = await db
+    .update(interviewPractices)
+    .set({ topicText: topic, ...input })
+    .where(
+      and(
+        eq(interviewPractices.id, id),
+        eq(interviewPractices.userId, userId),
+        gte(interviewPractices.createdAt, start),
+        lt(interviewPractices.createdAt, end),
+      ),
+    )
+    .returning({ id: interviewPractices.id });
+  if (!updated) return fail('This practice can only be edited on the day it was added.');
+  refresh();
+  return { success: 'Interview practice updated.' };
+}
+
+export async function deleteInterviewPracticeAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const id = z.uuid().safeParse(form.get('id'));
+  if (!id.success) return bad(id.error);
+  const { start, end } = await sameDayEditWindowFor(userId);
+  const [deleted] = await db
+    .delete(interviewPractices)
+    .where(
+      and(
+        eq(interviewPractices.id, id.data),
+        eq(interviewPractices.userId, userId),
+        gte(interviewPractices.createdAt, start),
+        lt(interviewPractices.createdAt, end),
+      ),
+    )
+    .returning({ id: interviewPractices.id });
+  if (!deleted) return fail('This practice can only be deleted on the day it was added.');
+  refresh();
+  return { success: 'Interview practice deleted.' };
+}
+
 export async function createInterviewFollowUpAction(
   _: LifeActionState,
   form: FormData,
@@ -418,7 +440,7 @@ export async function createInterviewFollowUpAction(
       .values({
         userId,
         title: practice.nextAction.slice(0, 160),
-        area: 'Interview Preparation',
+        area: 'Career',
         details: practice.weaknesses,
         status: 'todo',
       })
@@ -451,35 +473,104 @@ export async function addEnglishPracticeAction(
       ]),
       topic: title,
       durationMinutes: z.coerce.number().int().min(1).max(1440),
-      fluency: optionalRating,
-      grammar: optionalRating,
-      clarity: optionalRating,
-      pronunciation: optionalRating,
-      confidence: optionalRating,
-      reviewer: optionalText(80),
-      reflection: optionalText(2000),
     })
     .safeParse({
       date: form.get('date'),
       type: form.get('type'),
       topic: form.get('topic'),
       durationMinutes: form.get('durationMinutes'),
-      fluency: value(form, 'fluency'),
-      grammar: value(form, 'grammar'),
-      clarity: value(form, 'clarity'),
-      pronunciation: value(form, 'pronunciation'),
-      confidence: value(form, 'confidence'),
-      reviewer: value(form, 'reviewer'),
-      reflection: value(form, 'reflection'),
     });
   if (!parsed.success) return bad(parsed.error);
   if (parsed.data.date > (await todayFor(userId)))
     return fail('Practice date cannot be in the future.');
-  await db.insert(englishPractices).values({ userId, ...parsed.data });
+  await db.insert(englishPractices).values({ userId, ...parsed.data, createdAt: serverNow() });
   refresh();
-  return {
-    success: 'English practice recorded. Ratings are self-assessed unless a reviewer is named.',
-  };
+  return { success: 'English practice recorded.' };
+}
+
+export async function updateEnglishPracticeAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const parsed = z
+    .object({
+      id: z.uuid(),
+      date: z.iso.date(),
+      type: z.enum([
+        'free_speaking',
+        'technical_explanation',
+        'mock_interview',
+        'conversation',
+        'grammar',
+        'pronunciation',
+      ]),
+      topic: title,
+      durationMinutes: z.coerce.number().int().min(1).max(1440),
+    })
+    .safeParse({
+      id: form.get('id'),
+      date: form.get('date'),
+      type: form.get('type'),
+      topic: form.get('topic'),
+      durationMinutes: form.get('durationMinutes'),
+    });
+  if (!parsed.success) return bad(parsed.error);
+  const { id, ...input } = parsed.data;
+  const { today, start, end } = await sameDayEditWindowFor(userId);
+  if (input.date > today) return fail('Practice date cannot be in the future.');
+  const [updated] = await db
+    .update(englishPractices)
+    .set(input)
+    .where(
+      and(
+        eq(englishPractices.id, id),
+        eq(englishPractices.userId, userId),
+        gte(englishPractices.createdAt, start),
+        lt(englishPractices.createdAt, end),
+      ),
+    )
+    .returning({ id: englishPractices.id });
+  if (!updated) return fail('This practice can only be edited on the day it was added.');
+  refresh();
+  return { success: 'English practice updated.' };
+}
+
+export async function deleteEnglishPracticeAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const id = z.uuid().safeParse(form.get('id'));
+  if (!id.success) return bad(id.error);
+  const { start, end } = await sameDayEditWindowFor(userId);
+  const deleted = await db.transaction(async (tx) => {
+    const [eligible] = await tx
+      .select({ id: englishPractices.id })
+      .from(englishPractices)
+      .where(
+        and(
+          eq(englishPractices.id, id.data),
+          eq(englishPractices.userId, userId),
+          gte(englishPractices.createdAt, start),
+          lt(englishPractices.createdAt, end),
+        ),
+      )
+      .for('update')
+      .limit(1);
+    if (!eligible) return false;
+    await tx
+      .update(grammarMistakes)
+      .set({ practiceId: null })
+      .where(and(eq(grammarMistakes.userId, userId), eq(grammarMistakes.practiceId, id.data)));
+    await tx
+      .delete(englishPractices)
+      .where(and(eq(englishPractices.id, id.data), eq(englishPractices.userId, userId)));
+    return true;
+  });
+  if (!deleted) return fail('This practice can only be deleted on the day it was added.');
+  refresh();
+  return { success: 'English practice deleted.' };
 }
 export async function addGrammarMistakeAction(
   _: LifeActionState,
@@ -647,6 +738,8 @@ export async function saveApplicationAction(
       company: title,
       roleTitle: title,
       roleTrack: z.enum(['SE', 'DevOps', 'QA', 'Other']),
+      stage: z.union([stages, z.literal('')]).transform((item) => item || null),
+      stageOn: optionalDate,
       url: optionalUrl,
       location: optionalText(160),
       arrangement: z.enum(['', 'onsite', 'hybrid', 'remote']).transform((item) => item || null),
@@ -660,6 +753,8 @@ export async function saveApplicationAction(
       company: form.get('company'),
       roleTitle: form.get('roleTitle'),
       roleTrack: form.get('roleTrack'),
+      stage: value(form, 'stage'),
+      stageOn: value(form, 'stageOn'),
       url: value(form, 'url'),
       location: value(form, 'location'),
       arrangement: value(form, 'arrangement'),
@@ -669,8 +764,9 @@ export async function saveApplicationAction(
       note: value(form, 'note'),
     });
   if (!parsed.success) return bad(parsed.error);
-  const { id, ...input } = parsed.data;
-  if (input.appliedOn && input.appliedOn > (await todayFor(userId)))
+  const { id, stage: requestedStage, stageOn: requestedStageOn, ...input } = parsed.data;
+  const today = await todayFor(userId);
+  if (input.appliedOn && input.appliedOn > today)
     return fail('Application date cannot be in the future.');
   if (id) {
     const current = (
@@ -682,34 +778,86 @@ export async function saveApplicationAction(
     )[0];
     if (!current) return fail('Application not found.');
     if (current.stage === 'saved' && input.appliedOn)
-      return fail('Use Record stage to mark this saved opportunity as applied.');
+      return fail('Use Update stage to mark this opportunity as applied.');
     if (!['saved', 'withdrawn'].includes(current.stage) && !input.appliedOn)
       return fail('Keep the actual application date for a submitted application.');
-    const changed = await db
-      .update(internshipApplications)
-      .set({ ...input, updatedAt: new Date() })
-      .where(and(eq(internshipApplications.userId, userId), eq(internshipApplications.id, id)))
-      .returning({ id: internshipApplications.id });
-    if (!changed.length) return fail('Application not found.');
+    const result = await db.transaction(async (tx) => {
+      if (input.appliedOn) {
+        const events = await tx
+          .select({
+            stageOn: applicationStageHistory.stageOn,
+            toStage: applicationStageHistory.toStage,
+          })
+          .from(applicationStageHistory)
+          .where(
+            and(
+              eq(applicationStageHistory.userId, userId),
+              eq(applicationStageHistory.applicationId, id),
+            ),
+          );
+        if (
+          events.some(
+            (event) =>
+              event.toStage !== 'applied' &&
+              event.toStage !== 'saved' &&
+              event.stageOn &&
+              event.stageOn < input.appliedOn!,
+          )
+        ) {
+          return fail('Application date cannot be after a recorded later stage date.');
+        }
+      }
+      const changed = await tx
+        .update(internshipApplications)
+        .set({ ...input, updatedAt: new Date() })
+        .where(and(eq(internshipApplications.userId, userId), eq(internshipApplications.id, id)))
+        .returning({ id: internshipApplications.id });
+      if (!changed.length) return fail('Application not found.');
+      if (input.appliedOn) {
+        await tx
+          .update(applicationStageHistory)
+          .set({ stageOn: input.appliedOn })
+          .where(
+            and(
+              eq(applicationStageHistory.userId, userId),
+              eq(applicationStageHistory.applicationId, id),
+              eq(applicationStageHistory.toStage, 'applied'),
+            ),
+          );
+      }
+      return null;
+    });
+    if (result) return result;
   } else {
+    const stage =
+      requestedStage === 'saved' && input.appliedOn
+        ? 'applied'
+        : (requestedStage ?? (input.appliedOn ? 'applied' : 'saved'));
+    if (!['saved', 'withdrawn'].includes(stage) && !input.appliedOn)
+      return fail('Enter the actual application date for this stage.');
+    const stageOn = stage === 'applied' ? input.appliedOn! : (requestedStageOn ?? today);
+    if (stageOn > today) return fail('Stage date cannot be in the future.');
+    if (input.appliedOn && stageOn < input.appliedOn)
+      return fail('Stage date cannot be before the application submission date.');
     await db.transaction(async (tx) => {
-      const stage = input.appliedOn ? 'applied' : 'saved';
       const [created] = await tx
         .insert(internshipApplications)
         .values({ userId, ...input, stage })
         .returning({ id: internshipApplications.id });
       await tx
         .insert(applicationStageHistory)
-        .values({ userId, applicationId: created.id, fromStage: null, toStage: stage });
+        .values({ userId, applicationId: created.id, fromStage: null, toStage: stage, stageOn });
     });
   }
   refresh();
   return {
     success: id
       ? 'Application updated.'
-      : input.appliedOn
-        ? 'Submitted application recorded.'
-        : 'Opportunity saved; it is not counted as submitted.',
+      : requestedStage === 'withdrawn'
+        ? 'Withdrawn opportunity recorded.'
+        : input.appliedOn
+          ? 'Submitted application recorded.'
+          : 'Opportunity saved; it is not counted as submitted.',
   };
 }
 export async function changeApplicationStageAction(
@@ -717,15 +865,16 @@ export async function changeApplicationStageAction(
   form: FormData,
 ): Promise<LifeActionState> {
   const userId = (await requireUser()).id;
-  const parsed = z.object({ id: z.uuid(), stage: stages, appliedOn: optionalDate }).safeParse({
-    id: form.get('id'),
-    stage: form.get('stage'),
-    appliedOn: value(form, 'appliedOn'),
-  });
+  const parsed = z
+    .object({ id: z.uuid(), stage: stages, appliedOn: optionalDate, stageOn: optionalDate })
+    .safeParse({
+      id: form.get('id'),
+      stage: form.get('stage'),
+      appliedOn: value(form, 'appliedOn'),
+      stageOn: value(form, 'stageOn'),
+    });
   if (!parsed.success) return bad(parsed.error);
   const input = parsed.data;
-  if (input.appliedOn && input.appliedOn > (await todayFor(userId)))
-    return fail('Application date cannot be in the future.');
   const result = await db.transaction(async (tx) => {
     const current = (
       await tx
@@ -738,23 +887,93 @@ export async function changeApplicationStageAction(
         .limit(1)
     )[0];
     if (!current) return fail('Application not found.');
-    if (current.stage === input.stage) return fail('Application is already at this stage.');
-    const appliedOn = input.appliedOn ?? current.appliedOn;
+    if (input.stage === 'saved' && current.appliedOn)
+      return fail('A submitted application cannot return to Not applied yet.');
+    const appliedOn =
+      current.appliedOn ?? (['saved', 'withdrawn'].includes(input.stage) ? null : input.appliedOn);
     if (!['saved', 'withdrawn'].includes(input.stage) && !appliedOn)
-      return fail('Record the actual application date before advancing.');
+      return fail('Enter the date you first submitted the application.');
+    const today = await todayFor(userId);
+    if (!current.appliedOn && appliedOn && appliedOn > today)
+      return fail('Application date cannot be in the future.');
+    const stageOn = input.stage === 'applied' ? appliedOn! : (input.stageOn ?? today);
+    if (stageOn > today) return fail('Stage date cannot be in the future.');
+    if (appliedOn && stageOn < appliedOn)
+      return fail('Stage date cannot be before the application submission date.');
+    if (current.stage === input.stage) {
+      const latest = (
+        await tx
+          .select()
+          .from(applicationStageHistory)
+          .where(
+            and(
+              eq(applicationStageHistory.userId, userId),
+              eq(applicationStageHistory.applicationId, input.id),
+            ),
+          )
+          .orderBy(desc(applicationStageHistory.changedAt), desc(applicationStageHistory.id))
+          .limit(1)
+      )[0];
+      if (latest?.stageOn === stageOn) return fail('This stage date is already recorded.');
+      if (latest && latest.toStage === current.stage) {
+        await tx
+          .update(applicationStageHistory)
+          .set({ stageOn })
+          .where(
+            and(
+              eq(applicationStageHistory.userId, userId),
+              eq(applicationStageHistory.id, latest.id),
+            ),
+          );
+      } else {
+        await tx.insert(applicationStageHistory).values({
+          userId,
+          applicationId: input.id,
+          fromStage: null,
+          toStage: current.stage,
+          stageOn,
+        });
+      }
+      await tx
+        .update(internshipApplications)
+        .set({ updatedAt: new Date() })
+        .where(
+          and(eq(internshipApplications.userId, userId), eq(internshipApplications.id, input.id)),
+        );
+      return { success: 'Stage date saved.' };
+    }
     await tx
       .update(internshipApplications)
       .set({ stage: input.stage, appliedOn, updatedAt: new Date() })
       .where(
         and(eq(internshipApplications.userId, userId), eq(internshipApplications.id, input.id)),
       );
-    await tx
-      .insert(applicationStageHistory)
-      .values({ userId, applicationId: input.id, fromStage: current.stage, toStage: input.stage });
+    await tx.insert(applicationStageHistory).values({
+      userId,
+      applicationId: input.id,
+      fromStage: current.stage,
+      toStage: input.stage,
+      stageOn,
+    });
     return { success: 'Application stage recorded in history.' };
   });
   if (result.success) refresh();
   return result;
+}
+export async function deleteApplicationAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const id = z.uuid().safeParse(form.get('id'));
+  if (!id.success) return fail('Choose a valid opportunity to delete.');
+  const deleted = await db
+    .delete(internshipApplications)
+    .where(and(eq(internshipApplications.userId, userId), eq(internshipApplications.id, id.data)))
+    .returning({ id: internshipApplications.id });
+  if (!deleted.length) return fail('Opportunity not found.');
+  refresh();
+  return { success: 'Opportunity deleted.' };
 }
 export async function createApplicationFollowUpAction(
   _: LifeActionState,

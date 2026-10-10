@@ -3,7 +3,6 @@ import { and, eq, gte, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   englishPractices,
-  grammarMistakes,
   internshipApplications,
   interviewPractices,
   milestoneCriteria,
@@ -12,13 +11,7 @@ import {
   topicPractices,
   subjects,
 } from '@/lib/db/schema';
-import {
-  topicIndicator,
-  pipelineSummary,
-  interviewWeak,
-  weakestEnglishDimension,
-  canAcceptMilestone,
-} from '@/lib/evidence/summary';
+import { topicIndicator, pipelineSummary, canAcceptMilestone } from '@/lib/evidence/summary';
 import { addCalendarDays } from '@/lib/planning/time-blocks';
 
 export async function EvidenceReview({
@@ -32,7 +25,7 @@ export async function EvidenceReview({
   end: string;
   today: string;
 }) {
-  const [topics, academic, grades, reviews, criteria, interviews, english, mistakes, applications] =
+  const [topics, academic, grades, reviews, criteria, interviews, english, applications] =
     await Promise.all([
       db.select().from(subjectTopics).where(eq(subjectTopics.userId, userId)),
       db
@@ -68,7 +61,6 @@ export async function EvidenceReview({
             lte(englishPractices.date, end),
           ),
         ),
-      db.select().from(grammarMistakes).where(eq(grammarMistakes.userId, userId)).limit(100),
       db.select().from(internshipApplications).where(eq(internshipApplications.userId, userId)),
     ]);
   const thisWeek = academic.filter((item) => item.date >= start && item.date <= end);
@@ -84,8 +76,6 @@ export async function EvidenceReview({
         today,
       ) === 'Needs review',
   );
-  const weakInterview = interviews.filter(interviewWeak);
-  const weakest = weakestEnglishDimension(english);
   const pipeline = pipelineSummary(applications, today);
   return (
     <section className="rounded-2xl border bg-card p-5 space-y-3">
@@ -134,23 +124,21 @@ export async function EvidenceReview({
         <div className="rounded-xl border p-3">
           <h3 className="font-semibold">Interviews</h3>
           <p>
-            {interviews.length} practice sessions · {weakInterview.length} with recorded weak areas
+            {interviews.length} practice sessions ·{' '}
+            {interviews.reduce((total, item) => total + (item.durationMinutes ?? 0), 0)} recorded
+            minutes
           </p>
           <p className="text-xs text-muted-foreground">
-            Next:{' '}
-            {weakInterview[0]?.nextAction ??
-              (interviews.length
-                ? 'Revisit a weak topic.'
-                : 'Record a practice session to assess a topic.')}
+            {new Set(interviews.map((item) => item.topicText ?? item.topicId)).size} topics
+            practised this week
           </p>
         </div>
         <div className="rounded-xl border p-3">
           <h3 className="font-semibold">English</h3>
           <p>
-            {english.reduce((sum, item) => sum + item.durationMinutes, 0)} recorded minutes ·
-            weakest self-rated area: {weakest ?? 'Not assessed'}
+            {english.length} practice sessions ·{' '}
+            {english.reduce((sum, item) => sum + item.durationMinutes, 0)} recorded minutes
           </p>
-          <p>{mistakes.filter((item) => !item.reviewedAt).length} corrections awaiting review</p>
         </div>
         <div className="rounded-xl border p-3">
           <h3 className="font-semibold">Internships</h3>

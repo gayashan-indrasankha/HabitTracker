@@ -120,6 +120,34 @@
   padding: 16px;
 }
 
+.themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--primary) 55%, var(--muted)) var(--muted);
+}
+.themed-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.themed-scrollbar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: var(--muted);
+}
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid var(--muted);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 55%, var(--muted));
+}
+.themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+.themed-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
+.themed-scrollbar:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
 @keyframes habit-tooltip-appear {
   from {
     opacity: 0;
@@ -131,6 +159,132 @@
 
 .habit-name-tooltip {
   animation: habit-tooltip-appear 150ms ease-out;
+}
+
+.evidence-help {
+  width: min(100%, 36rem);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--card);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.evidence-help:hover,
+.evidence-help[open] {
+  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
+}
+.evidence-help[open] {
+  box-shadow: 0 4px 16px color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+.evidence-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  letter-spacing: -0.02em;
+}
+.evidence-section-heading::after {
+  height: 1px;
+  flex: 1;
+  background: var(--border);
+  content: '';
+}
+.evidence-help-trigger {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+  list-style: none;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  transition: background-color 150ms ease;
+}
+.evidence-help-trigger:hover,
+.evidence-help[open] > .evidence-help-trigger {
+  background: color-mix(in oklab, var(--primary) 5%, var(--card));
+}
+.evidence-help[open] > .evidence-help-trigger {
+  border-bottom: 1px solid var(--border);
+}
+.evidence-help-trigger::-webkit-details-marker,
+.evidence-action-trigger::-webkit-details-marker {
+  display: none;
+}
+.evidence-help-trigger::marker {
+  content: '';
+}
+.evidence-help-trigger::before {
+  display: grid;
+  width: 1.625rem;
+  height: 1.625rem;
+  flex: none;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--primary) 9%, var(--card));
+  color: var(--primary);
+  content: 'i';
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.evidence-help-trigger::after {
+  display: grid;
+  width: 1.625rem;
+  height: 1.625rem;
+  flex: none;
+  place-items: center;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--primary);
+  content: '+';
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1;
+}
+.evidence-help[open] > .evidence-help-trigger::after {
+  content: '−';
+}
+.evidence-action-trigger::after {
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: -0.2rem 0 0 0.75rem;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  content: '';
+  transform: rotate(45deg);
+  transition: transform 150ms ease;
+}
+details[open] > .evidence-action-trigger::after {
+  transform: rotate(225deg);
+}
+.evidence-help > p {
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.evidence-page :is(#interviews, #english, #weight) > details:not([open]) {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  margin-right: 0.5rem;
+  vertical-align: top;
+}
+.evidence-page :is(#interviews, #english, #weight) > details + details {
+  margin-block-start: 0;
+}
+.evidence-page :is(#interviews, #english, #weight) > details[open] {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background: color-mix(in oklab, var(--muted) 25%, var(--card));
 }
 
 @media (prefers-reduced-motion: reduce) {
