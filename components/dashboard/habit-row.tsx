@@ -56,7 +56,7 @@ export function HabitRow({
 
   const handleToggle = useCallback(
     async (date: string) => {
-      if (pendingRef.current) return;
+      if (pendingRef.current || date !== today) return;
       pendingRef.current = true;
       setPendingDate(date);
       setError(null);
@@ -88,7 +88,7 @@ export function HabitRow({
         setPendingDate(null);
       }
     },
-    [habit.id],
+    [habit.id, today],
   );
 
   return (
@@ -135,6 +135,7 @@ export function HabitRow({
             date={day.date}
             isCompleted={completedDates.has(day.date)}
             isToday={day.date === today}
+            isPast={day.date < today}
             isFuture={day.date > today}
             isEligible={isEligible}
             isReadOnly={habit.archived || !isEligible}

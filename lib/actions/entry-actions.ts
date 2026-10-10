@@ -51,6 +51,9 @@ export async function toggleEntryAction(
 
   const settings = await getUserSettings(userId);
   const today = toDateString(getTodayInTimezone(settings.timezone));
+  if (date < today) {
+    return { error: 'Past days are locked. Only today’s habits can be changed.' };
+  }
   const [year, month, day] = date.split('-').map(Number);
   const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
   if (

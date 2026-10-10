@@ -9,6 +9,7 @@ interface DayCellProps {
   date: string;
   isCompleted: boolean;
   isToday: boolean;
+  isPast: boolean;
   isFuture: boolean;
   isEligible: boolean;
   isReadOnly?: boolean;
@@ -22,6 +23,7 @@ export const DayCell = memo(function DayCell({
   date,
   isCompleted,
   isToday,
+  isPast,
   isFuture,
   isEligible,
   isReadOnly = false,
@@ -29,7 +31,9 @@ export const DayCell = memo(function DayCell({
   isBusy,
   onToggle,
 }: DayCellProps) {
-  const label = `${isCompleted ? 'Remove completion' : 'Mark complete'} for ${habitName} on ${date}`;
+  const label = isPast
+    ? `${isCompleted ? 'Completed' : 'Not completed'} for ${habitName} on ${date} (past day locked)`
+    : `${isCompleted ? 'Remove completion' : 'Mark complete'} for ${habitName} on ${date}`;
   return (
     <td className={cn('w-10 min-w-10 border-b p-1 text-center', isToday && 'bg-primary/5')}>
       {isEligible || isCompleted ? (
@@ -38,14 +42,16 @@ export const DayCell = memo(function DayCell({
           aria-label={label}
           aria-pressed={isCompleted}
           title={label}
-          disabled={isFuture || isBusy || isReadOnly}
+          disabled={isPast || isFuture || isBusy || isReadOnly}
           onClick={() => onToggle(date)}
           className={cn(
             'mx-auto flex h-7 w-7 items-center justify-center rounded-[5px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             isCompleted
               ? 'border-primary bg-primary text-primary-foreground shadow-sm'
               : 'border-border bg-background hover:border-primary hover:bg-primary/5',
-            isFuture && 'cursor-not-allowed opacity-35',
+            (isFuture || isPast) && 'cursor-not-allowed',
+            isFuture && 'opacity-35',
+            isPast && !isCompleted && 'opacity-55',
             isPending && 'opacity-65',
           )}
         >

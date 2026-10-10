@@ -14,6 +14,9 @@ test('the local calendar day is eligible when UTC is still yesterday', async ({ 
   const tomorrow = new Date(`${today}T00:00:00Z`);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const futureDate = tomorrow.toISOString().slice(0, 10);
+  const yesterday = new Date(`${today}T00:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const pastDate = yesterday.toISOString().slice(0, 10);
   const habit = `Midnight habit ${Date.now()}`;
 
   await page.goto('/register');
@@ -39,6 +42,11 @@ test('the local calendar day is eligible when UTC is still yesterday', async ({ 
   await expect(todayButton).toBeEnabled();
   await expect(
     row.getByRole('button', { name: `Mark complete for ${habit} on ${futureDate}` }),
+  ).toBeDisabled();
+  await expect(
+    row.getByRole('button', {
+      name: `Not completed for ${habit} on ${pastDate} (past day locked)`,
+    }),
   ).toBeDisabled();
   await todayButton.click();
   await expect(row).toContainText('1 / 1');

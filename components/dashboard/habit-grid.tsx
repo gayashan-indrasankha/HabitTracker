@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,10 +13,47 @@ interface HabitGridProps {
   entries: SelectHabitEntry[];
   days: CalendarDay[];
   today: string;
+  timezone: string;
+  clockStartedAt: string;
   weekStartsOn?: number;
 }
 
-export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: HabitGridProps) {
+function dateInTimezone(instant: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(instant);
+  const value = (type: string) => parts.find((part) => part.type === type)?.value;
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+export function HabitGrid({
+  habits,
+  entries,
+  days,
+  today,
+  timezone,
+  clockStartedAt,
+  weekStartsOn = 1,
+}: HabitGridProps) {
+  const [currentDay, setCurrentDay] = useState(today);
+
+  useEffect(() => {
+    const mountedAt = Date.now();
+    const initialTime = Date.parse(clockStartedAt);
+    const refreshDay = () =>
+      setCurrentDay(dateInTimezone(new Date(initialTime + Date.now() - mountedAt), timezone));
+    refreshDay();
+    const timer = window.setInterval(refreshDay, 1000);
+    document.addEventListener('visibilitychange', refreshDay);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshDay);
+    };
+  }, [clockStartedAt, timezone]);
+
   if (habits.length === 0) {
     return (
       <section className="rounded-2xl border border-dashed bg-card px-6 py-16 text-center shadow-sm">
@@ -51,7 +91,7 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
         <div>
           <h2 className="font-bold tracking-tight">Monthly habits</h2>
           <p className="text-xs text-muted-foreground">
-            Select a day to mark it complete. Scroll horizontally to see the whole month.
+            Check off today’s habits. Past days are locked after midnight. Scroll to see the month.
           </p>
         </div>
         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
@@ -59,7 +99,7 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
         </span>
       </div>
       <div
-        className="overflow-x-auto overscroll-x-contain"
+        className="themed-scrollbar overflow-x-auto overscroll-x-contain"
         tabIndex={0}
         aria-label="Scroll monthly tracker horizontally"
       >
@@ -107,7 +147,7 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
                   scope="col"
                   key={day.date}
                   title={day.date}
-                  className={`w-10 min-w-10 border-b border-r px-0 py-2 text-center ${day.date === today ? 'bg-primary/10 text-primary' : day.dayOfWeek === 0 || day.dayOfWeek === 6 ? 'bg-slate-100 dark:bg-muted/60' : ''}`}
+                  className={`w-10 min-w-10 border-b border-r px-0 py-2 text-center ${day.date === currentDay ? 'bg-primary/10 text-primary' : day.dayOfWeek === 0 || day.dayOfWeek === 6 ? 'bg-slate-100 dark:bg-muted/60' : ''}`}
                 >
                   <span className="block text-[10px] font-medium">{day.weekday}</span>
                   <span className="block text-xs font-bold">{day.day}</span>
@@ -121,7 +161,7 @@ export function HabitGrid({ habits, entries, days, today, weekStartsOn = 1 }: Ha
                 key={`${habit.id}:${days[0]?.date}`}
                 habit={habit}
                 days={days}
-                today={today}
+                today={currentDay}
                 weekStartsOn={weekStartsOn}
                 initialCompletedDates={completedByHabit.get(habit.id) ?? []}
               />

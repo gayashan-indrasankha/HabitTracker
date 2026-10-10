@@ -21,9 +21,8 @@ test('future habit schedule, archive, and restore preserve earlier checked days'
   await expect(page).toHaveURL(/\/habits$/);
   await page.goto('/dashboard?month=2026-10');
   const row = page.getByRole('row', { name: new RegExp(name) });
-  for (const day of ['01', '02'])
-    await row.getByRole('button', { name: `Mark complete for ${name} on 2026-10-${day}` }).click();
-  await expect(row).toContainText('2 / 8');
+  await row.getByRole('button', { name: `Mark complete for ${name} on 2026-10-08` }).click();
+  await expect(row).toContainText('1 / 8');
 
   await page.goto('/habits');
   await page.getByRole('button', { name: `Actions for ${name}` }).click();
@@ -36,7 +35,7 @@ test('future habit schedule, archive, and restore preserve earlier checked days'
   await page.goto('/dashboard?month=2026-10');
   await expect(row).toContainText('3/week');
   await expect(
-    row.getByRole('button', { name: `Remove completion for ${name} on 2026-10-01` }),
+    row.getByRole('button', { name: `Remove completion for ${name} on 2026-10-08` }),
   ).toBeVisible();
 
   await page.goto('/habits');
@@ -54,6 +53,6 @@ test('future habit schedule, archive, and restore preserve earlier checked days'
   await expect(row).toContainText('3/week');
   await expect(row).not.toContainText('Archived');
   await expect(
-    row.getByRole('button', { name: `Remove completion for ${name} on 2026-10-01` }),
+    row.getByRole('button', { name: `Remove completion for ${name} on 2026-10-08` }),
   ).toBeVisible();
 });
