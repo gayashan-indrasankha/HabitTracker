@@ -75,6 +75,10 @@ try {
     "UPDATE meal_logs SET status='not_followed' WHERE meal_id=$1 AND date='2027-01-01'",
     [meal.id],
   );
+  await client.query(
+    "UPDATE meal_logs SET actual_calories=300, actual_protein=30, actual_carbs=40, actual_fat=10 WHERE meal_id=$1 AND date='2027-01-01'",
+    [meal.id],
+  );
   await assert.rejects(
     client.query(
       "INSERT INTO meal_logs (user_id,meal_id,date,status) VALUES ('other',$1,'2027-01-02','followed')",
@@ -82,6 +86,9 @@ try {
     ),
   );
   await client.query('UPDATE meal_templates SET active=false WHERE id=$1', [meal.id]);
+  await client.query('UPDATE meal_templates SET planned_carbs=60, planned_fat=20 WHERE id=$1', [
+    meal.id,
+  ]);
   await client.query(
     "INSERT INTO user_settings (user_id,nutrition_enabled) VALUES ('owner',false)",
   );
@@ -94,12 +101,38 @@ try {
       .rows[0].planned_calories,
     500,
   );
+  const plannedMacros = (
+    await client.query('SELECT planned_carbs, planned_fat FROM meal_templates WHERE id=$1', [
+      meal.id,
+    ])
+  ).rows[0];
+  assert.equal(plannedMacros.planned_carbs, 60);
+  assert.equal(plannedMacros.planned_fat, 20);
+  await client.query("UPDATE meal_logs SET status=NULL WHERE meal_id=$1 AND date='2027-01-01'", [
+    meal.id,
+  ]);
+  const actuals = (
+    await client.query(
+      'SELECT status, actual_calories, actual_protein, actual_carbs, actual_fat FROM meal_logs WHERE meal_id=$1',
+      [meal.id],
+    )
+  ).rows[0];
+  assert.deepEqual(
+    [
+      actuals.status,
+      actuals.actual_calories,
+      actuals.actual_protein,
+      actuals.actual_carbs,
+      actuals.actual_fat,
+    ],
+    [null, 300, 30, 40, 10],
+  );
   const columns = (
     await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_name='meal_logs'",
     )
   ).rows.map((row) => row.column_name);
-  assert(!columns.includes('actual_calories'));
+  assert(columns.includes('actual_calories'));
   await client.query("DELETE FROM meal_logs WHERE meal_id=$1 AND date='2027-01-01'", [meal.id]);
   assert.equal(
     (await client.query('SELECT count(*)::int AS count FROM meal_logs WHERE meal_id=$1', [meal.id]))

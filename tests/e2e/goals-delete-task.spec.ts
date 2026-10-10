@@ -37,9 +37,7 @@ test('a mistaken task can be deleted without leaving a gap in Today', async ({ p
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: mistaken }) })
     .first();
-  await mistakenCard.locator('summary[title="Delete task"]').click();
-  await expect(mistakenCard).toContainText(`Delete “${mistaken}”?`);
-  await mistakenCard.getByRole('button', { name: 'Delete task' }).click();
+  await mistakenCard.getByRole('button', { name: `Delete ${mistaken}` }).click();
   await expect(page.getByRole('heading', { name: mistaken })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: keep })).toBeVisible();
 
@@ -81,10 +79,9 @@ test('one account cannot delete another account’s task', async ({ page, browse
 
   await register(page, 'Owner');
   const ownerCard = await addTask(page, `Owner task ${tag}`);
-  await ownerCard.locator('summary[title="Delete task"]').click();
   const ownerId = await ownerCard
     .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Delete task' }) })
+    .filter({ has: page.getByRole('button', { name: `Delete Owner task ${tag}` }) })
     .locator('[name="id"]')
     .inputValue();
 
@@ -93,14 +90,13 @@ test('one account cannot delete another account’s task', async ({ page, browse
     const other = await otherContext.newPage();
     await register(other, 'Other');
     const otherCard = await addTask(other, `Other task ${tag}`);
-    await otherCard.locator('summary[title="Delete task"]').click();
     const deleteForm = otherCard
       .locator('form')
-      .filter({ has: other.getByRole('button', { name: 'Delete task' }) });
+      .filter({ has: other.getByRole('button', { name: `Delete Other task ${tag}` }) });
     await deleteForm.locator('[name="id"]').evaluate((input: HTMLInputElement, id) => {
       input.value = id;
     }, ownerId);
-    await deleteForm.getByRole('button', { name: 'Delete task' }).click();
+    await deleteForm.getByRole('button', { name: `Delete Other task ${tag}` }).click();
     await expect(deleteForm.getByRole('alert')).toContainText('Task not found');
     await page.reload();
     await expect(page.getByRole('heading', { name: `Owner task ${tag}` })).toBeVisible();

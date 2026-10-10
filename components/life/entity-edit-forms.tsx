@@ -6,30 +6,48 @@ import {
   setProjectArchiveAction,
 } from '@/lib/actions/life-actions';
 import { ActionForm } from './action-form';
+import { AreaField } from './area-field';
+import { normalizeLifeArea } from '@/lib/life-areas';
 
 type Goal = typeof goals.$inferSelect;
 type Project = typeof projects.$inferSelect;
 const field = 'mt-1 min-h-10 w-full rounded-lg border bg-background px-3';
 const statusOptions = ['active', 'paused', 'completed', 'cancelled'] as const;
 
-export function EditGoalForm({ goal }: { goal: Goal }) {
+export function EditGoalForm({ goal, areas }: { goal: Goal; areas: string[] }) {
   return (
-    <div className="mt-3 space-y-2">
-      <details>
-        <summary className="cursor-pointer font-medium text-primary">Edit goal</summary>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Close this section to cancel without saving.
-        </p>
+    <div className="contents">
+      <details className="group min-w-0 open:basis-full">
+        <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-lg bg-primary/5 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+          Edit goal
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            fill="none"
+            className="size-4 transition-transform group-open:rotate-180"
+          >
+            <path
+              d="m5 7.5 5 5 5-5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </summary>
         <ActionForm
           action={editGoalAction}
           submitLabel="Save goal"
-          className="mt-3 grid gap-3 sm:grid-cols-2"
+          showSuccess={false}
+          successConfirmation="Goal saved"
+          className="mt-3 grid gap-4 rounded-xl border bg-background p-4 sm:grid-cols-2"
         >
           <input type="hidden" name="id" value={goal.id} />
-          <label className="text-sm">
-            Life area
-            <input name="area" required defaultValue={goal.area} className={field} />
-          </label>
+          <AreaField
+            label="Life area"
+            options={areas}
+            defaultValue={normalizeLifeArea(goal.area)}
+          />
           <label className="text-sm">
             Title
             <input
@@ -46,7 +64,7 @@ export function EditGoalForm({ goal }: { goal: Goal }) {
               name="description"
               maxLength={2000}
               defaultValue={goal.description ?? ''}
-              className="mt-1 w-full rounded-lg border bg-background p-3"
+              className="mt-1 min-h-24 w-full rounded-lg border bg-background p-3"
             />
           </label>
           <label className="text-sm">
@@ -62,7 +80,7 @@ export function EditGoalForm({ goal }: { goal: Goal }) {
             <select name="status" defaultValue={goal.status} className={field}>
               {statusOptions.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {item.charAt(0).toUpperCase() + item.slice(1)}
                 </option>
               ))}
             </select>
@@ -98,12 +116,23 @@ export function EditGoalForm({ goal }: { goal: Goal }) {
           </label>
         </ActionForm>
       </details>
-      <details>
-        <summary className="cursor-pointer text-xs text-muted-foreground">Archive goal</summary>
+      <details className="min-w-0 open:basis-full">
+        <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-lg border bg-background px-3.5 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+          <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="size-4">
+            <path
+              d="M3.5 5.5h13v3h-13v-3ZM5 8.5V16h10V8.5M8 11.5h4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Archive goal
+        </summary>
         <ActionForm
           action={setGoalArchiveAction}
           submitLabel="Archive goal"
-          className="mt-2 space-y-2"
+          className="mt-3 space-y-3 rounded-xl border bg-card p-3"
         >
           <input type="hidden" name="id" value={goal.id} />
           <input type="hidden" name="archive" value="yes" />
@@ -125,16 +154,31 @@ export function EditProjectForm({
   goals: Goal[];
 }) {
   return (
-    <div className="mt-3 space-y-2">
-      <details>
-        <summary className="cursor-pointer font-medium text-primary">Edit project</summary>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Close this section to cancel without saving.
-        </p>
+    <div className="contents">
+      <details className="group min-w-0 open:basis-full">
+        <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-lg bg-primary/5 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+          Edit project
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            fill="none"
+            className="size-4 transition-transform group-open:rotate-180"
+          >
+            <path
+              d="m5 7.5 5 5 5-5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </summary>
         <ActionForm
           action={editProjectAction}
           submitLabel="Save project"
-          className="mt-3 grid gap-3 sm:grid-cols-2"
+          showSuccess={false}
+          successConfirmation="Project saved"
+          className="mt-3 grid gap-4 rounded-xl border bg-background p-4 sm:grid-cols-2"
         >
           <input type="hidden" name="id" value={project.id} />
           <label className="text-sm">
@@ -150,10 +194,10 @@ export function EditProjectForm({
           <label className="text-sm">
             Type
             <select name="type" defaultValue={project.type} className={field}>
+              <option>General</option>
               <option>UCSC Industry Project</option>
               <option>Software Engineering Portfolio</option>
               <option>DevOps Portfolio</option>
-              <option>General</option>
             </select>
           </label>
           <label className="text-sm sm:col-span-2">
@@ -162,7 +206,7 @@ export function EditProjectForm({
               name="description"
               maxLength={2000}
               defaultValue={project.description ?? ''}
-              className="mt-1 w-full rounded-lg border bg-background p-3"
+              className="mt-1 min-h-24 w-full rounded-lg border bg-background p-3"
             />
           </label>
           <label className="text-sm">
@@ -181,7 +225,7 @@ export function EditProjectForm({
             <select name="status" defaultValue={project.status} className={field}>
               {statusOptions.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {item.charAt(0).toUpperCase() + item.slice(1)}
                 </option>
               ))}
             </select>
@@ -206,12 +250,24 @@ export function EditProjectForm({
           </label>
         </ActionForm>
       </details>
-      <details>
-        <summary className="cursor-pointer text-xs text-muted-foreground">Archive project</summary>
+      <details className="min-w-0 open:basis-full">
+        <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-lg border bg-background px-3.5 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+          <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="size-4">
+            <path
+              d="M3.5 5.5h13v3h-13v-3ZM5 8.5V16h10V8.5M8 11.5h4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Archive project
+        </summary>
         <ActionForm
           action={setProjectArchiveAction}
           submitLabel="Archive project"
-          className="mt-2 space-y-2"
+          showSuccess={false}
+          className="mt-3 space-y-3 rounded-xl border bg-card p-3"
         >
           <input type="hidden" name="id" value={project.id} />
           <input type="hidden" name="archive" value="yes" />

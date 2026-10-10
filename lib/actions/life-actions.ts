@@ -23,6 +23,7 @@ import {
   weeklyReviews,
 } from '@/lib/db/schema';
 import { getUserSettings } from '@/lib/dal/user-settings';
+import { getReview } from '@/lib/dal/life';
 import { getTodayInTimezone, serverNow, toDateString } from '@/lib/utils/date';
 import {
   expandBlocks,
@@ -51,7 +52,7 @@ const fail = (error: string): LifeActionState => ({ error });
 const invalid = (error: z.ZodError): LifeActionState =>
   fail(error.issues[0]?.message ?? 'Check the form fields.');
 function refresh() {
-  for (const route of ['/today', '/week', '/goals', '/review']) revalidatePath(route);
+  for (const route of ['/dashboard', '/today', '/week', '/goals', '/review']) revalidatePath(route);
 }
 const nullable = (form: FormData, key: string) => String(form.get(key) ?? '');
 const checked = (form: FormData, key: string) => form.get(key) === 'on';
@@ -144,6 +145,64 @@ export async function editGoalAction(_: LifeActionState, form: FormData): Promis
     .where(and(eq(goals.userId, userId), eq(goals.id, id.data)));
   refresh();
   return { success: 'Goal saved.' };
+}
+
+export async function deleteGoalAction(
+  _: LifeActionState,
+  form: FormData,
+): Promise<LifeActionState> {
+  const userId = (await requireUser()).id;
+  const id = z.uuid().safeParse(form.get('id'));
+  if (!id.success) return fail('Goal not found.');
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [goal] = await tx
+        .select({ id: goals.id })
+        .from(goals)
+        .where(and(eq(goals.userId, userId), eq(goals.id, id.data)))
+        .for('update');
+      if (!goal) return 'missing';
+
+      const [linkedTask] = await tx
+        .select({ id: tasks.id })
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.goalId, goal.id)))
+        .limit(1);
+      if (linkedTask) return 'linked';
+      const [linkedProject] = await tx
+        .select({ id: projects.id })
+        .from(projects)
+        .where(and(eq(projects.userId, userId), eq(projects.goalId, goal.id)))
+        .limit(1);
+      if (linkedProject) return 'linked';
+      const [linkedBlock] = await tx
+        .select({ id: timeBlocks.id })
+        .from(timeBlocks)
+        .where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.goalId, goal.id)))
+        .limit(1);
+      if (linkedBlock) return 'linked';
+      const [linkedRevision] = await tx
+        .select({ id: timeBlockRevisions.id })
+        .from(timeBlockRevisions)
+        .where(and(eq(timeBlockRevisions.userId, userId), eq(timeBlockRevisions.goalId, goal.id)))
+        .limit(1);
+      if (linkedRevision) return 'linked';
+
+      await tx.delete(goals).where(and(eq(goals.userId, userId), eq(goals.id, goal.id)));
+      return 'deleted';
+    });
+    if (result === 'missing') return fail('Goal not found.');
+    if (result === 'linked')
+      return fail(
+        'This goal has linked work. Reassign its tasks, projects, or schedule before deleting it.',
+      );
+  } catch {
+    return fail('Could not delete this goal. Check for linked work and try again.');
+  }
+
+  refresh();
+  return { success: 'Goal deleted.' };
 }
 
 export async function editProjectAction(
@@ -324,10 +383,8 @@ export async function deleteTaskAction(
   form: FormData,
 ): Promise<LifeActionState> {
   const userId = (await requireUser()).id;
-  const parsed = z
-    .object({ id: z.uuid(), confirmation: z.literal('delete') })
-    .safeParse({ id: form.get('id'), confirmation: form.get('confirmation') });
-  if (!parsed.success) return fail('Confirm the task you want to delete.');
+  const parsed = z.uuid().safeParse(form.get('id'));
+  if (!parsed.success) return fail('Choose a valid task to delete.');
 
   try {
     const result = await db.transaction(async (tx) => {
@@ -335,7 +392,7 @@ export async function deleteTaskAction(
       const [task] = await tx
         .select()
         .from(tasks)
-        .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data.id)))
+        .where(and(eq(tasks.userId, userId), eq(tasks.id, parsed.data)))
         .limit(1);
       if (!task) return 'missing';
       if (
@@ -1352,6 +1409,7 @@ export async function saveSubjectAction(
       set: { ...parsed.data, updatedAt: new Date() },
     });
   refresh();
+  revalidatePath('/goals/evidence');
   return { success: 'Subject saved.' };
 }
 
@@ -1439,31 +1497,25 @@ export async function saveReviewAction(
   const userId = (await requireUser()).id;
   const weekStart = z.iso.date().safeParse(form.get('weekStart'));
   if (!weekStart.success) return fail('Choose a valid week.');
-  const keys = [
-    'academic',
-    'industry',
-    'career',
-    'interview',
-    'english',
-    'fitness',
-    'sleepAttention',
-    'obstacles',
-    'nextWins',
-  ];
-  const answers: Record<string, string> = {};
-  for (const key of keys) {
-    const value = nullable(form, key).trim();
-    if (value.length > 2000) return fail('Keep each answer under 2,000 characters.');
-    answers[key] = value;
+  const note = nullable(form, 'nextWins').trim();
+  if (note.length > 2000) return fail('Keep your note under 2,000 characters.');
+  const existing = await getReview(userId, weekStart.data);
+  let answers: Record<string, string> = {};
+  if (existing?.answers) {
+    try {
+      answers = JSON.parse(existing.answers) as Record<string, string>;
+    } catch {
+      answers = {};
+    }
   }
-  const completedAt = checked(form, 'complete') ? new Date() : null;
+  answers.nextWins = note;
   await db
     .insert(weeklyReviews)
-    .values({ userId, weekStart: weekStart.data, answers: JSON.stringify(answers), completedAt })
+    .values({ userId, weekStart: weekStart.data, answers: JSON.stringify(answers) })
     .onConflictDoUpdate({
       target: [weeklyReviews.userId, weeklyReviews.weekStart],
-      set: { answers: JSON.stringify(answers), completedAt, updatedAt: new Date() },
+      set: { answers: JSON.stringify(answers), updatedAt: new Date() },
     });
   refresh();
-  return { success: completedAt ? 'Weekly review completed.' : 'Review draft saved.' };
+  return { success: 'Note saved.' };
 }

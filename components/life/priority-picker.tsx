@@ -250,7 +250,7 @@ export function PriorityPicker({
                     <span className="mt-1 block text-xs text-muted-foreground">
                       {task.area}
                       {task.projectName ? ` · ${task.projectName}` : ''}
-                      {task.dueDate ? ` · Due ${task.dueDate}` : ' · Unscheduled'}
+                      {task.dueDate ? ` · End ${task.dueDate}` : ' · No end date'}
                     </span>
                   </span>
                 </ActionForm>
