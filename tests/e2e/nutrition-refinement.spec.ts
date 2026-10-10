@@ -15,49 +15,75 @@ test('optional meal plan can be edited, logged, cleared, paused, and resumed', a
   await expect(page).toHaveURL(/\/dashboard/);
 
   await page.goto('/settings');
-  const section = page.getByRole('heading', { name: 'Optional meal checklist' }).locator('..');
+  const section = page.getByRole('region', { name: 'Optional meal checklist' });
   await section.getByRole('button', { name: 'Enable checklist' }).click();
   await section.getByText('Edit meal plan').click();
   await section.getByLabel('Meal name').fill('Breakfast');
   await section.getByLabel('Food/portion notes (optional)').fill('My existing meal plan');
   await section.getByLabel('Planned kcal (optional)').fill('500');
+  await section.getByLabel('Planned carbs g (optional)').fill('60');
+  await section.getByLabel('Planned fat g (optional)').fill('20');
   await section.getByRole('button', { name: 'Add meal' }).click();
   await expect(section.getByText('Meal plan saved.')).toBeVisible();
+  const plan = section.locator('details').first();
+  if (!(await plan.evaluate((details) => (details as HTMLDetailsElement).open))) {
+    await section.getByText('Edit meal plan').click();
+  }
+  await section.getByText('Breakfast', { exact: true }).click();
   const edit = section
     .locator('form')
     .filter({ has: page.getByRole('button', { name: 'Save meal' }) });
-  if (!(await edit.isVisible())) await section.getByText('Edit meal plan').click();
   await edit.getByLabel('Meal name').fill('Morning meal');
   await edit.getByRole('button', { name: 'Save meal' }).click();
 
   await page.goto('/today');
   await page.getByText('Nutrition checklist').click();
   await expect(page.getByText('Morning meal')).toBeVisible();
-  await expect(page.getByText(/Actual intake is not calculated/)).toBeVisible();
-  const group = page.getByRole('group', { name: /Morning meal status/ });
-  await group.getByRole('button', { name: 'Followed', exact: true }).click();
-  await expect(group.getByRole('button', { name: 'Followed', exact: true })).toHaveAttribute(
+  await expect(page.getByText('Daily nutrition totals')).toBeVisible();
+  await expect(page.getByText('Plan: 60 g').first()).toBeVisible();
+  await expect(page.getByText('Plan: 20 g').first()).toBeVisible();
+  await expect(page.getByText(/~60 g carbs/)).toBeVisible();
+  await expect(page.getByText(/~20 g fat/)).toBeVisible();
+  await page.getByText('Add actual amounts').click();
+  const actualForm = page.getByRole('form', { name: /Actual amounts for Morning meal/ });
+  await actualForm.locator('[name="actualCalories"]').fill('300');
+  await actualForm.locator('[name="actualProtein"]').fill('30');
+  await actualForm.locator('[name="actualCarbs"]').fill('40');
+  await actualForm.locator('[name="actualFat"]').fill('10');
+  await actualForm.getByRole('button', { name: 'Save actual amounts' }).click();
+  await expect(actualForm.getByText('Saved')).toBeVisible();
+  await expect(page.getByText('30 g consumed')).toBeVisible();
+  await page.reload();
+  await page.getByText('Nutrition checklist').click();
+  await page.getByText('Edit actual amounts').click();
+  await expect(
+    page
+      .getByRole('form', { name: /Actual amounts for Morning meal/ })
+      .locator('[name="actualProtein"]'),
+  ).toHaveValue('30');
+  const group = page.getByRole('group', { name: /Did you eat Morning meal as planned/ });
+  await expect(group.locator('..').getByText('No time planned')).toBeVisible();
+  await group.getByRole('button', { name: 'Ate as planned', exact: true }).click();
+  await expect(group.getByRole('button', { name: 'Ate as planned', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await group.getByRole('button', { name: 'Not recorded' }).click();
-  await expect(group.getByRole('button', { name: 'Not recorded' })).toHaveAttribute(
+  await group.getByRole('button', { name: 'No answer' }).click();
+  await expect(group.getByRole('button', { name: 'No answer' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await group.getByRole('button', { name: 'Not followed' }).click();
-  await expect(group.getByRole('button', { name: 'Not followed' })).toHaveAttribute(
+  await expect(page.getByText('30 g consumed')).toBeVisible();
+  await group.getByRole('button', { name: 'Ate something else' }).click();
+  await expect(group.getByRole('button', { name: 'Ate something else' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
 
-  await page.getByLabel('Log date').fill('2026-10-07');
-  await page.getByRole('button', { name: 'View date' }).click();
-  await expect(page).toHaveURL(/mealDate=2026-10-07/);
-  await page.getByText('Nutrition checklist').click();
+  await expect(page.getByLabel('Log date')).toHaveCount(0);
   await page
-    .getByRole('group', { name: /Morning meal status/ })
-    .getByRole('button', { name: 'Followed', exact: true })
+    .getByRole('group', { name: /Did you eat Morning meal as planned/ })
+    .getByRole('button', { name: 'Ate as planned', exact: true })
     .click();
 
   await page.goto('/settings');
@@ -66,12 +92,12 @@ test('optional meal plan can be edited, logged, cleared, paused, and resumed', a
   await expect(page.getByText('Nutrition checklist')).toHaveCount(0);
   await page.goto('/settings');
   await section.getByRole('button', { name: 'Enable checklist' }).click();
-  await page.goto('/today?mealDate=2026-10-07');
+  await page.goto('/today');
   await page.getByText('Nutrition checklist').click();
   await expect(
     page
-      .getByRole('group', { name: /Morning meal status/ })
-      .getByRole('button', { name: 'Followed', exact: true }),
+      .getByRole('group', { name: /Did you eat Morning meal as planned/ })
+      .getByRole('button', { name: 'Ate as planned', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -85,9 +111,7 @@ test('meal templates and logs remain private to their account', async ({ page, b
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await page.goto('/settings');
-  const ownerSettings = page
-    .getByRole('heading', { name: 'Optional meal checklist' })
-    .locator('..');
+  const ownerSettings = page.getByRole('region', { name: 'Optional meal checklist' });
   await ownerSettings.getByRole('button', { name: 'Enable checklist' }).click();
   await ownerSettings.getByText('Edit meal plan').click();
   await ownerSettings.getByLabel('Meal name').fill('Private meal');
@@ -96,8 +120,8 @@ test('meal templates and logs remain private to their account', async ({ page, b
   await page.goto('/today');
   await page.getByText('Nutrition checklist').click();
   await page
-    .getByRole('group', { name: /Private meal status/ })
-    .getByRole('button', { name: 'Followed', exact: true })
+    .getByRole('group', { name: /Did you eat Private meal as planned/ })
+    .getByRole('button', { name: 'Ate as planned', exact: true })
     .click();
 
   const otherContext = await browser.newContext({ baseURL: 'http://localhost:3100' });
@@ -111,9 +135,7 @@ test('meal templates and logs remain private to their account', async ({ page, b
     await other.getByRole('button', { name: 'Create account' }).click();
     await expect(other).toHaveURL(/\/dashboard/);
     await other.goto('/settings');
-    const otherSettings = other
-      .getByRole('heading', { name: 'Optional meal checklist' })
-      .locator('..');
+    const otherSettings = other.getByRole('region', { name: 'Optional meal checklist' });
     await expect(otherSettings.getByText('Edit meal plan (0/6)')).toBeVisible();
     await otherSettings.getByRole('button', { name: 'Enable checklist' }).click();
     await other.goto('/today');
