@@ -318,7 +318,7 @@ export function LifeOsSetup() {
                   ['Week', '/week'],
                   ['Goals', '/goals'],
                   ['Habits', '/habits'],
-                  ['Review', '/review'],
+                  ['Insights', '/review'],
                 ] as const
               ).map(([label, href]) => (
                 <Link

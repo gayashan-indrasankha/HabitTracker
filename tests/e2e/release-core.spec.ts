@@ -45,44 +45,31 @@ test('invalid credentials and a cleared session cannot open private routes or ex
   await expect(page).toHaveURL(/\/dashboard/);
 });
 
-test('weekly review drafts, completion, history, and measured outcomes persist', async ({
-  page,
-}) => {
+test('monthly insights show evidence and measured outcomes', async ({ page }) => {
   await register(page, 'Review Release');
-  await page.goto('/review?week=2026-10-05');
-  await expect(page.getByText(/Week of 2026-10-05/)).toContainText('Draft');
-  const review = page
-    .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Save review' }) });
-  await review.locator('[name="academic"]').fill('Practised graph questions');
-  await review.getByRole('button', { name: 'Save review' }).click();
-  await expect(review.getByRole('status')).toContainText('Review draft saved');
-  await page.reload();
-  await expect(review.locator('[name="academic"]')).toHaveValue('Practised graph questions');
-  await review.locator('[name="nextWins"]').fill('Review weak graphs topic');
-  await review.locator('[name="complete"]').check();
-  await review.getByRole('button', { name: 'Save review' }).click();
-  await expect(review.getByRole('status')).toContainText('Weekly review completed');
-  await page.reload();
-  await expect(page.getByText(/Week of 2026-10-05/)).toContainText('Completed');
-  await expect(review.locator('[name="nextWins"]')).toHaveValue('Review weak graphs topic');
+  await page.goto('/review');
+  await expect(page.getByRole('heading', { name: 'Notice, learn, adjust' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Evidence by period' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recorded outcomes' })).toBeVisible();
 
+  await page.getByRole('link', { name: 'Open evidence' }).click();
   const measurement = page
     .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Record metric' }) });
-  await measurement.locator('[name="date"]').fill('2026-10-08');
+    .filter({ has: page.getByRole('button', { name: 'Save weight' }) });
+  const today = await measurement.locator('[name="date"]').inputValue();
+  const yesterday = new Date(`${today}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  await measurement.locator('[name="date"]').fill(yesterday.toISOString().slice(0, 10));
+  await measurement.locator('[name="value"]').fill('70.5');
+  await measurement.getByRole('button', { name: 'Save weight' }).click();
+  await expect(measurement.getByRole('status')).toContainText('Actual body weight recorded');
+  await measurement.locator('[name="date"]').fill(today);
   await measurement.locator('[name="value"]').fill('71');
-  await measurement.getByRole('button', { name: 'Record metric' }).click();
-  await expect(measurement.getByRole('status')).toContainText('Measurement recorded');
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Outcome' }).locator('..')).toContainText(
-    '71.0 kg',
-  );
-  await page.goto('/review?week=2026-09-28');
-  await expect(page.getByText(/Week of 2026-09-28/)).toContainText('Draft');
-  await expect(page.getByRole('heading', { name: 'Outcome' }).locator('..')).toContainText(
-    'No weight data',
-  );
+  await measurement.getByRole('button', { name: 'Save weight' }).click();
+  await expect(measurement.getByRole('status')).toContainText('Actual body weight recorded');
+  await page.goto('/review');
+  await expect(page.getByText('Body-weight readings')).toBeVisible();
+  await expect(page.getByText('Days with weight readings').locator('..')).toContainText('2');
 });
 
 test('private JSON export includes owned records and excludes credentials and another user', async ({

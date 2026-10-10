@@ -21,7 +21,7 @@ const navigation = [
   { name: 'Week', href: '/week', icon: CalendarDays },
   { name: 'Habits', href: '/habits', icon: ListChecks },
   { name: 'Goals & Projects', href: '/goals', icon: Target },
-  { name: 'Review & Insights', href: '/review', icon: ClipboardCheck },
+  { name: 'Monthly insights', href: '/review', icon: ClipboardCheck },
   { name: 'Journal', href: '/notes', icon: NotebookPen },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
